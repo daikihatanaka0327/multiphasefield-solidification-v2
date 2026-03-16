@@ -13,7 +13,7 @@ grid:
 physical:
   T_melt: 1687          # Melting temperature [K]
   G: 1.0e+2             # Temperature gradient [K/m]
-  V_pulling: 3.5e-2     # Pulling velocity [m/s]
+  V_pulling: 4.0e-2     # Pulling velocity [m/s]
   Sf: 2.12e+4           # Entropy of fusion [J/(m³·K)]
 
 interface:
@@ -31,7 +31,7 @@ anisotropy:
 
 mobility:
   M_SL: 5.0e-5          # Solid-liquid mobility [m/(Pa·s)]
-  M_GB_ratio: 0.05      # M_GB = M_SL * M_GB_ratio
+  M_GB_ratio: 0.01      # M_GB = M_SL * M_GB_ratio
 
 gpu:
   MAX_GRAINS: 20        # Max phases in kernel (fixed buffer size)
