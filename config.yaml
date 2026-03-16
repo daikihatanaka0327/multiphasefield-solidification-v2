@@ -1,0 +1,53 @@
+# =====================================================
+# Multi-Phase Field Solidification - Configuration
+# =====================================================
+
+grid:
+  nx: 256
+  ny: 256
+  dx: 1.0e-4
+  dy: 1.0e-4
+  dt: 1.0e-4
+  nsteps: 20000
+
+physical:
+  T_melt: 1687          # Melting temperature [K]
+  G: 1.0e+2             # Temperature gradient [K/m]
+  V_pulling: 3.5e-2     # Pulling velocity [m/s]
+  Sf: 2.12e+4           # Entropy of fusion [J/(m³·K)]
+
+interface:
+  delta_factor: 6.0     # Interface thickness = delta_factor * dx
+  gamma_100: 0.44       # Solid-liquid base energy (100 baseline) [J/m²]
+  gamma_GB: 0.60        # Grain boundary energy (isotropic) [J/m²]
+
+anisotropy:
+  a0_deg: 54.7          # Reference angle [degrees]
+  delta_a: 0.36         # Anisotropy strength
+  mu_a: 0.6156          # Anisotropy prefactor
+  p_round: 0.05         # Corner rounding parameter
+  ksi: 0.30             # Kinetic anisotropy parameter
+  omg_deg: 10.0         # Angular parameter [degrees]
+
+mobility:
+  M_SL: 5.0e-5          # Solid-liquid mobility [m/(Pa·s)]
+  M_GB_ratio: 0.05      # M_GB = M_SL * M_GB_ratio
+
+gpu:
+  MAX_GRAINS: 20        # Max phases in kernel (fixed buffer size)
+  KMAX: 18              # Max active phases buffer size
+  threads_per_block: [16, 16]
+
+seed:
+  mode: "image_line"    # "random_110" or "image_line"
+  number_of_grain_fallback: 17  # Used only when mode = "random_110"
+  random_seed: 42       # Random seed for "random_110" mode
+  image_path: "D:/hatanaka/phasefield/generated/seed0064_encode_XZ_111.bmp"
+  line_axis: "horizontal"   # "horizontal" or "vertical"
+  line_index: null          # null = center line
+  color_tolerance: 0        # 0..255, tolerance for anti-aliased images
+  height: 32                # Initial solid seed height [grid points]
+
+output:
+  dir_template: "result/ver6-5/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
+  save_every: 200
