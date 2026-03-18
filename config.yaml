@@ -13,10 +13,11 @@ grid:
 physical:
   T_melt: 1687          # Melting temperature [K]
   G: 1.0e+2             # Temperature gradient [K/m]
-  V_pulling: 1.0e-2     # Pulling velocity [m/s]
+  V_pulling: 3.0e-2     # Pulling velocity [m/s]
   Sf: 2.12e+4           # Entropy of fusion [J/(m³·K)]
 
 interface:
+
   delta_factor: 6.0     # Interface thickness = delta_factor * dx
   gamma_100: 0.44       # Solid-liquid base energy (100 baseline) [J/m²]
   gamma_GB: 0.60        # Grain boundary energy (isotropic) [J/m²]
@@ -31,7 +32,7 @@ anisotropy:
 
 mobility:
   M_SL: 5.0e-5          # Solid-liquid mobility [m/(Pa·s)]
-  M_GB_ratio: 0.05      # M_GB = M_SL * M_GB_ratio important 
+  M_GB_ratio: 0.1      # M_GB = M_SL * M_GB_ratio important 
 
 gpu:
   MAX_GRAINS: 20        # Max phases in kernel (fixed buffer size)
@@ -49,5 +50,5 @@ seed:
   height: 32                # Initial solid seed height [grid points]
 
 output:
-  dir_template: "result/tmp/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
+  dir_template: "result/tmp0/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
   save_every: 200
