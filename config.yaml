@@ -13,7 +13,7 @@ grid:
 physical:
   T_melt: 1687          # Melting temperature [K]
   G: 1.0e+2             # Temperature gradient [K/m]
-  V_pulling: 5.0e-2     # Pulling velocity [m/s]
+  V_pulling: 1.0e-2     # Pulling velocity [m/s]
   Sf: 2.12e+4           # Entropy of fusion [J/(m³·K)]
 
 interface:
@@ -50,5 +50,5 @@ seed:
   height: 32                # Initial solid seed height [grid points]
 
 output:
-  dir_template: "result/tmp00/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
+  dir_template: "result/new/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
   save_every: 200
