@@ -25,7 +25,7 @@
 8. [実行方法](#実行方法)
 9. [出力](#出力)
 10. [シード（初期結晶核）の設定](#シード初期結晶核の設定)
-11. [各セルの詳細説明](#各セルの詳細説明)
+11. [主要セルの詳細説明](#主要セルの詳細説明)
 12. [パラメータ変更ガイド](#パラメータ変更ガイド)
 13. [よくあるエラーと対処法](#よくあるエラーと対処法)
 
@@ -228,23 +228,22 @@ result/                                             # 出力（自動生成）
 
 | セル | ID | 内容 |
 |---|---|---|
-| 0 | `4b7a9ff0` | タイトル・説明（Markdown） |
-| 1 | `8dd6626f` | **設定読み込み**（config.yaml → Python変数） |
-| 2 | `81ab8d11` | **結晶方位の設定**（四元数・{111}法線の事前計算） |
-| 3 | `6f545928` | **APT 配列と相互作用行列の初期化** |
-| 4 | `4a55110e` | **界面パラメータの変換関数と行列充填** |
-| 5 | `4f450a44` | **CUDAデバイス関数**：異方性関数 $a(c)$、$b(\theta)$ |
-| 6 | `ec9e934e` | **CUDAデバイス関数**：最近接 {111} との cos 計算 |
-| 7 | `509e58d1` | **CUDAデバイス関数**：境界条件インデックス、勾配 |
-| 8 | `dc650256` | **CUDAデバイス関数**：セルごとの $\varepsilon^2$ 計算 |
-| 9 | `e6698b93` | **CUDAデバイス関数**：異方性拡散項（第1項） |
-| 10 | `e492311c` | **CUDAデバイス関数**：2階微分、トルク項 (A11–A15) |
-| 11 | `b1f44282` | **CUDAカーネル**：`kernel_update_nfmf`（APT配列更新） |
-| 12 | `cab2615b` | **CUDAカーネル**：`kernel_update_phasefield_active`（メイン更新） |
-| 13 | `95e767b6` | **CUDAカーネル**：`kernel_update_temp`（温度更新） |
-| 14 | `134d0c0d` | **初期化**（$\phi$, $T$ の初期値設定、初期図の出力） |
-| 15 | `c2b0947c` | **GPU転送**（CPU→GPU、グリッド計算） |
-| 16 | `4903b694` | **メインループ**（時間発展・可視化・保存） |
+| 0 | `d5b73807` | **設定読み込み**（import、`config.yaml` 読み込み、出力先作成） |
+| 1 | `7d0ba150` | **結晶方位の設定**（`random_110` / `image_line`、四元数・{111}法線の事前計算） |
+| 2 | `980b2eae` | **APT 配列と相互作用行列の初期化**（`mf`, `nf`, `wij`, `aij`, `mij`） |
+| 3 | `c7cc73f9` | **界面パラメータ変換**（`eps_from_gamma`, `w_from_gamma`, `mij_from_M`） |
+| 4 | `86afb621` | **CUDAデバイス関数**：異方性関数 `calc_a_from_cos`, `calc_b_from_cos` |
+| 5 | `bd13bdb7` | **CUDAデバイス関数**：最近接 {111} との cos 計算 |
+| 6 | `1562cec3` | **CUDAデバイス関数**：境界条件インデックス、勾配 |
+| 7 | `69701ca9` | **CUDAデバイス関数**：セルごとの $\varepsilon^2$ 計算 |
+| 8 | `0625991c` | **CUDAデバイス関数**：異方性拡散項（第1項） |
+| 9 | `a5aa21e6` | **CUDAデバイス関数**：2階微分、トルク項 (A11–A15) |
+| 10 | `7dddaa06` | **CUDAカーネル**：`kernel_update_nfmf`（APT配列更新） |
+| 11 | `840e0a86` | **CUDAカーネル**：`kernel_update_phasefield_active`（メイン更新） |
+| 12 | `df60f47a` | **CUDAカーネル**：`kernel_update_temp`（温度更新） |
+| 13 | `c9a33b23` | **初期化**（$\phi$, $T$ の初期値設定、初期図の保存） |
+| 14 | `13ef5be0` | **GPU転送**（CPU→GPU、グリッド設定） |
+| 15 | `37362037` | **メインループ**（時間発展・可視化・保存） |
 
 ---
 
@@ -299,6 +298,7 @@ cuda.detect()            # 詳細情報
 
 すべての物理・数値パラメータをここで管理します。
 ノートブックを直接編集せずに条件を変えられます。
+以下は 2026-03-19 時点の `config.yaml` の内容です。`image_path` はローカル環境依存なので適宜変更してください。
 
 ```yaml
 # =====================================================
@@ -316,7 +316,7 @@ grid:
 physical:
   T_melt: 1687      # 融点 [K]（シリコンの場合）
   G: 1.0e+2         # 温度勾配 [K/m]（初期温度分布に使用）
-  V_pulling: 3.5e-2 # 引き抜き速度 [m/s]（冷却速度 = G × V_pulling）
+  V_pulling: 1.0e-2 # 引き抜き速度 [m/s]（冷却速度 = G × V_pulling）
   Sf: 2.12e+4       # 融解エントロピー [J/(m³·K)]
 
 interface:
@@ -334,7 +334,7 @@ anisotropy:
 
 mobility:
   M_SL: 5.0e-5        # 固液間モビリティ [m/(Pa·s)]
-  M_GB_ratio: 0.05    # M_GB = M_SL × M_GB_ratio（粒界のモビリティ比）
+  M_GB_ratio: 0.10    # M_GB = M_SL × M_GB_ratio（粒界のモビリティ比）
 
 gpu:
   MAX_GRAINS: 20      # 相（グレイン+液相）の最大数（カーネルのバッファサイズ）
@@ -345,16 +345,18 @@ seed:
   mode: "image_line"  # "random_110" または "image_line"
   number_of_grain_fallback: 17  # random_110 モード時の固相グレイン数
   random_seed: 42               # random_110 モード時の乱数シード
-  image_path: "path/to/seed.bmp"  # image_line モード時の BMP 画像パス
+  image_path: "D:/hatanaka/phasefield/generated/seed0064_encode_XZ_111.bmp"  # 現在の設定値
   line_axis: "horizontal"         # 断面の向き："horizontal" または "vertical"
   line_index: null                # 断面位置（null = 中央）
   color_tolerance: 0              # 色の同一判定許容差（0〜255）
   height: 32                      # 初期固相の高さ [グリッド点数]
 
 output:
-  dir_template: "result/ver6-5/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
+  dir_template: "result/new/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
   save_every: 200   # 何ステップごとに PNG を保存するか
 ```
+
+> 現在の notebook では、`seed.height`・`gpu.threads_per_block`・`output.save_every` を Cell 0 で読み込んだ後、Cell 13/14/15 でそれぞれ `32`・`(16, 16)`・`200` に再代入しています。つまり、これら 3 項目は `config.yaml` を変更しても現状の notebook では自動反映されません。
 
 ### 各パラメータの詳細
 
@@ -440,25 +442,24 @@ jupyter notebook
 `GPU-multi-phase-field-model-solification_2d.ipynb` を開き、**上から順にセルを実行**します。
 
 > **重要**：セルを飛ばして実行すると変数未定義エラーになります。
-> 必ず Cell 1（設定読み込み）から順番に実行してください。
+> 必ず Cell 0（設定読み込み）から順番に実行してください。
 
 ### 3. 実行順序の確認
 
 ```
-Cell 1  → 設定読み込み
-Cell 2  → 結晶方位の計算
-Cell 3  → APT配列・相互作用行列の初期化
-Cell 4  → 界面パラメータ変換
-Cell 5-10 → CUDAデバイス関数の定義（JITコンパイルはこの時点では未実行）
-Cell 11-13 → CUDAカーネルの定義
-Cell 14 → 初期φ・T の設定と初期図の描画
-Cell 15 → GPU へのデータ転送
-Cell 16 → メインループ実行（最も時間がかかる）
+Cell 0  → import + 設定読み込み
+Cell 1  → 結晶方位の計算
+Cell 2-3 → APT配列・相互作用行列の初期化、界面パラメータ変換
+Cell 4-9 → CUDAデバイス関数の定義（JITコンパイルはこの時点では未実行）
+Cell 10-12 → CUDAカーネルの定義
+Cell 13 → 初期φ・T の設定と初期図の保存
+Cell 14 → GPU へのデータ転送とグリッド設定
+Cell 15 → メインループ実行（最も時間がかかる）
 ```
 
 ### 4. カーネル再コンパイルが必要な場合
 
-以下を変更したときは **Cell 1 から全セルを再実行**してください：
+以下を変更したときは **Cell 0 から全セルを再実行**してください：
 - `KMAX`, `MAX_GRAINS`（ローカル配列サイズが変わる）
 - `LIQ`（定数として焼き込まれている箇所がある）
 - デバイス関数の引数・ロジック変更
@@ -471,14 +472,16 @@ Cell 16 → メインループ実行（最も時間がかかる）
 
 `config.yaml` の `output.dir_template` で指定したディレクトリに PNG が保存されます。
 
-デフォルト例：`result/ver6-5/0.05/3.5e+00/`
-- `0.05` → `M_GB_ratio = 0.05`
-- `3.5e+00` → 冷却速度 $G \cdot V = 100 \times 0.035 = 3.5$ K/s
+現在の `config.yaml` に基づく例：`result/new/0.10/1.0e+00/`
+- `0.10` → `M_GB_ratio = 0.10`
+- `1.0e+00` → 冷却速度 $G \cdot V = 100 \times 0.01 = 1.0$ K/s
 
 ### 保存される画像
 
 - `step_0.png`：初期状態のグレインマップ
 - `step_200.png`, `step_400.png`, ...：`save_every` ステップごとのグレインマップ
+
+> 現状の notebook では Cell 15 で `save_every = 200` を固定しているため、`config.yaml` 側の変更だけでは保存間隔は変わりません。
 
 ### 画像の見方
 
@@ -502,6 +505,8 @@ seed:
   random_seed: 42                 # 乱数シード（再現性のため）
   height: 32                      # 初期固相の高さ [グリッド点]
 ```
+
+> 現状の notebook では Cell 13 に `seed_height = 32` があるため、`height` を変更してもそのままでは反映されません。
 
 **方位の決め方**（`random_110` モード）：
 
@@ -527,6 +532,8 @@ seed:
   height: 32                        # 初期固相の高さ
 ```
 
+> `image_line` でも初期高さは Cell 13 の `seed_height = 32` が使われます。
+
 **RGB → 四元数の変換**（`rgb_to_unit_quaternion`）：
 
 $$v_k = \frac{R_k}{255} \cdot 2 - 1 \quad (k = R, G, B)$$
@@ -545,9 +552,20 @@ $$w = \sqrt{\max(1 - |v|^2, 0)}, \quad q = (v_x, v_y, v_z, w) / |q|$$
 
 ---
 
-## 各セルの詳細説明
+## 主要セルの詳細説明
 
-### Cell 2：結晶方位と {111} 法線の事前計算
+### Cell 0：設定読み込み
+
+Cell 0 ではライブラリの import、`config.yaml` の読み込み、各パラメータの Python 変数化、出力ディレクトリの作成を行います。
+
+```python
+with open(CONFIG_PATH, "r") as f:
+    cfg = yaml.safe_load(f)
+```
+
+このセルで `seed.height`、`gpu.threads_per_block`、`output.save_every` も読み込まれますが、現状の notebook では後続セルで再代入されています。
+
+### Cell 1：結晶方位と {111} 法線の事前計算
 
 ```python
 grain_quaternions[gid]  # shape: (N, 4), SciPy (x,y,z,w) 形式
@@ -560,7 +578,7 @@ grain_n111[gid]         # shape: (N, 8, 3), 各グレインの8つの{111}方向
 8つの {111} 方向：$\frac{1}{\sqrt{3}}(\pm1, \pm1, \pm1)$ を回転行列で変換したもの。
 2D シミュレーションでは $(n_x, n_y)$ 成分のみ使用します。
 
-### Cell 4：界面パラメータ変換
+### Cell 3：界面パラメータ変換
 
 相互作用行列の充填：
 
@@ -572,7 +590,7 @@ grain_n111[gid]         # shape: (N, 8, 3), 各グレインの8つの{111}方向
 
 > 固液界面の $\varepsilon$ と $W$ は **異方性により実行時に上書き** されます（`aij`/`wij` に格納された値はデフォルト値）。
 
-### Cell 5：デバイス関数 `calc_a_from_cos` / `calc_b_from_cos`
+### Cell 4：デバイス関数 `calc_a_from_cos` / `calc_b_from_cos`
 
 ```python
 @cuda.jit(device=True, inline=True)
@@ -590,7 +608,7 @@ def calc_b_from_cos(best_cost, ksi, omg):
     # 戻り値: 運動学的異方性係数 b(θ)
 ```
 
-### Cell 7：境界条件インデックス
+### Cell 6：境界条件インデックス
 
 ```python
 idx_xp(l, nx)  # l+1（端では 0 へラップ）：周期境界
@@ -599,7 +617,7 @@ idx_yp(m, ny)  # m+1（端では ny-1：Neumann反射）
 idx_ym(m, ny)  # m-1（端では 0：Neumann反射）
 ```
 
-### Cell 9：`aniso_term1_solid`
+### Cell 8：`aniso_term1_solid`
 
 固液界面の異方性 Laplacian 項（いわゆる「主要項」）：
 
@@ -607,7 +625,7 @@ $$\nabla \cdot (\varepsilon^2 \nabla \phi_0) \approx \frac{({\varepsilon^2_c + \
 
 セルごとに $\varepsilon^2 = \varepsilon_0^2 \cdot a^2(\cos\theta)$ を計算してから差分します。
 
-### Cell 10：トルク項 `torque_A11`
+### Cell 9：トルク項 `torque_A11`
 
 異方性がある場合に生まれる付加項で、界面の向きを結晶の優先方向に引き付ける効果があります。
 論文 Appendix A の式 (A11)〜(A15) に対応します。
@@ -617,7 +635,7 @@ $$\nabla \cdot (\varepsilon^2 \nabla \phi_0) \approx \frac{({\varepsilon^2_c + \
 phixx, phiyy, phixy = d2_phi_xy(phi, 0, l, m, nx, ny, dx)
 ```
 
-### Cell 11：`kernel_update_nfmf`
+### Cell 10：`kernel_update_nfmf`
 
 毎ステップ呼び出し、各セルの「アクティブ相リスト」を更新します。
 
@@ -628,7 +646,7 @@ phi[i, l, m] > 0  OR  隣接セルのいずれかで phi[i, ...] > 0
 
 後者の条件（隣接セルチェック）により、「次のステップで界面が広がる」相も事前にアクティブと判定します。
 
-### Cell 12：`kernel_update_phasefield_active`（メインカーネル）
+### Cell 11：`kernel_update_phasefield_active`（メインカーネル）
 
 メインの時間発展カーネル。1 GPU スレッドが 1 セル $(l, m)$ を担当します。
 
@@ -646,6 +664,21 @@ phi[i, l, m] > 0  OR  隣接セルのいずれかで phi[i, ...] > 0
 driving_force = -Sf * (T - T_melt)  # T < T_melt で負 → 固相が成長
 ```
 
+### Cell 13：初期条件の構築
+
+`phi_cpu` と `temp_cpu` を作り、`step_0.png` を保存します。
+現在の notebook ではこのセル内で `seed_height = 32` を再代入しているため、`config.yaml` の `seed.height` を変更してもここでは使われません。
+
+### Cell 14：GPU転送とグリッド設定
+
+CPU 側の配列を `cuda.to_device(...)` で GPU に転送し、`blockspergrid` を計算します。
+このセルでは `threadsperblock = (16, 16)` を再代入しています。
+
+### Cell 15：メインループ
+
+温度更新、APT 更新、フェーズフィールド更新、PNG 保存をまとめて実行します。
+このセルでは `save_every = 200` を再代入しています。
+
 ---
 
 ## パラメータ変更ガイド
@@ -655,7 +688,7 @@ driving_force = -Sf * (T - T_melt)  # T < T_melt で負 → 固相が成長
 ```yaml
 physical:
   G: 1.0e+3          # 温度勾配を10倍に
-  V_pulling: 3.5e-2  # 速度は同じ → 冷却速度10倍
+  V_pulling: 1.0e-2  # 速度は同じ → 冷却速度10倍
 ```
 
 または
@@ -663,7 +696,7 @@ physical:
 ```yaml
 physical:
   G: 1.0e+2
-  V_pulling: 3.5e-1  # 速度を10倍
+  V_pulling: 1.0e-1  # 速度を10倍
 ```
 
 どちらも $\dot{T} = G \cdot V$ が変わります。
@@ -680,7 +713,7 @@ gpu:
   KMAX: 30          # MAX_GRAINS に合わせる
 ```
 
-> `MAX_GRAINS` を変えたら **カーネルを再コンパイル**（Cell 1 から再実行）。
+> `MAX_GRAINS` を変えたら **カーネルを再コンパイル**（Cell 0 から再実行）。
 
 ### 計算領域を大きくしたい
 
@@ -705,7 +738,7 @@ anisotropy:
 
 ```yaml
 mobility:
-  M_GB_ratio: 0.5    # デフォルト 0.05 → 10倍
+  M_GB_ratio: 0.5    # デフォルト 0.10 → 5倍
 ```
 
 ---
