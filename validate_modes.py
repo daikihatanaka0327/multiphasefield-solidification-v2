@@ -8,9 +8,9 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='repla
 
 import numpy as np
 import yaml
-from orientation_utils import build_quaternion_from_config, compute_rotated_n111
-from seed_modes import (init_singlemode_phi, init_twomode_phi,
-                        init_temperature_field, build_interaction_matrices)
+from src.orientation_utils import build_quaternion_from_config, compute_rotated_n111
+from src.seed_modes import (init_singlemode_phi, init_twomode_phi,
+                             init_temperature_field, build_interaction_matrices)
 
 SEP = "-" * 60
 PASS = "[OK  ]"
