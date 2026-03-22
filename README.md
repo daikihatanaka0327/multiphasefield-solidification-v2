@@ -23,9 +23,9 @@
 6. [インストール・環境構築](#インストール環境構築)
 7. [設定ファイル（config.yaml）](#設定ファイルconfigyaml)
 8. [実行方法](#実行方法)
-9. [出力](#出力)
-10. [シード（初期結晶核）の設定](#シード初期結晶核の設定)
-11. [各セルの詳細説明](#各セルの詳細説明)
+9. [シミュレーションモード](#シミュレーションモード)
+10. [出力](#出力)
+11. [主要セルの詳細説明](#主要セルの詳細説明)
 12. [パラメータ変更ガイド](#パラメータ変更ガイド)
 13. [よくあるエラーと対処法](#よくあるエラーと対処法)
 
@@ -49,8 +49,8 @@
 
 | 論文の設定 | このコード |
 |---|---|
-| 2D simulation viewed from ⟨110⟩ orientation | `seed_mode: "random_110"` |
-| 断面画像からシード方位を読み込む | `seed_mode: "image_line"` |
+| 2D simulation viewed from ⟨110⟩ orientation | `run_randommode.py` （`random_110` は notebook 固有） |
+| 断面画像からシード方位を読み込む | `run_imagemode.py` |
 | Periodic boundary on lateral sides | x 方向周期境界 |
 | Symmetric boundary condition | y 方向 Neumann 境界 |
 | Active Parameter Tracking | `kernel_update_nfmf` + `kernel_update_phasefield_active` |
@@ -70,7 +70,7 @@ $\sum_i \phi_i = 1$ の拘束条件を満たします。
 
 ### 進化方程式（論文 Eq. 1）
 
-$$\frac{\partial \phi_i}{\partial t} = -\frac{2}{n} \sum_{j=1}^{n} m_{ij} \left\{ \sum_{k=1}^{n} \left[ \frac{1}{2}\left(\varepsilon_{ik}^2 - \varepsilon_{jk}^2\right)\nabla^2\phi_k + \left(w_{ik} - w_{jk}\right)\phi_k \right] - \frac{8}{\pi}\sqrt{\phi_i \phi_j} \,\Delta g_{ij} \right\}$$
+$$\frac{\partial \phi_i}{\partial t} = -\frac{2}{n} \sum_{j=1}^{n} m_{ij} \left\lbrace \sum_{k=1}^{n} \left[ \frac{1}{2}\left(\varepsilon_{ik}^2 - \varepsilon_{jk}^2\right)\nabla^2\phi_k + \left(w_{ik} - w_{jk}\right)\phi_k \right] - \frac{8}{\pi}\sqrt{\phi_i \phi_j} \,\Delta g_{ij} \right\rbrace$$
 
 ここで $n$ は当該セルでのアクティブ相数、$m_{ij}$ はフェーズフィールドモビリティです。
 
@@ -78,7 +78,7 @@ $$\frac{\partial \phi_i}{\partial t} = -\frac{2}{n} \sum_{j=1}^{n} m_{ij} \left\
 
 $$\Delta g = \Delta T \cdot S_f = (T_\text{melt} - T) \cdot S_f$$
 
-- $S_f = 2.12 \times 10^4\ \text{J/(K·m}^3\text{)}$：融解エントロピー
+- $S_f = 2.12 \times 10^4\ \text{J/(K}\cdot\text{m}^3\text{)}$：融解エントロピー
 - 固液ペア $(i=\text{solid},\ j=\text{liquid})$ にのみ適用。粒界（固固）は $\Delta g = 0$
 
 ### 界面パラメータ変換（論文 Eq. 2, 3, 5）
@@ -87,7 +87,7 @@ $$\varepsilon = \sqrt{\frac{8\delta\gamma}{\pi^2}}, \quad w = \frac{4\gamma}{\de
 
 - $\delta$：拡散界面幅（`delta_factor × dx`）
 - $\gamma$：界面エネルギー $[\text{J/m}^2]$
-- $\beta$：attachment kinetic coefficient $[\text{m}^4/(\text{J·s})]$
+- $\beta$：attachment kinetic coefficient $[\text{m}^4/(\text{J}\cdot\text{s})]$
 
 ### 固液界面の異方性（論文 Eq. 6, 8, Appendix A2–A4）
 
@@ -116,7 +116,7 @@ $$\varepsilon^2\nabla^2\phi \;\longrightarrow\; \nabla\!\left(\varepsilon(\theta
 
 右辺第2項が「トルク項」で、3つのサブ項 (A11) に展開されます：
 
-$$= \varepsilon_0^2 \sum_{p=x,y} \left\{ \underbrace{\frac{\partial a}{\partial p}\frac{\partial a}{\partial \phi_p}|\nabla\phi|^2}_{\text{(I)}} + \underbrace{a\frac{\partial}{\partial p}\!\left(\frac{\partial a}{\partial \phi_p}\right)|\nabla\phi|^2}_{\text{(II)}} + \underbrace{a\frac{\partial a}{\partial \phi_p}\frac{\partial}{\partial p}\!\left(|\nabla\phi|^2\right)}_{\text{(III)}} \right\}$$
+$$= \varepsilon_0^2 \sum_{p=x,y} \left\lbrace \underbrace{\frac{\partial a}{\partial p}\frac{\partial a}{\partial \phi_p}|\nabla\phi|^2}_{\text{(I)}} + \underbrace{a\frac{\partial}{\partial p}\!\left(\frac{\partial a}{\partial \phi_p}\right)|\nabla\phi|^2}_{\text{(II)}} + \underbrace{a\frac{\partial a}{\partial \phi_p}\frac{\partial}{\partial p}\!\left(|\nabla\phi|^2\right)}_{\text{(III)}} \right\rbrace$$
 
 各偏微分は (A12)–(A15) に従い $\partial\cos\theta/\partial p$、$\partial\cos\theta/\partial\phi_p$ に帰着させて差分で実装。
 
@@ -218,33 +218,61 @@ GPU のローカルメモリ（レジスタ or ローカルメモリ）は静的
 ## コード構成
 
 ```
-GPU-multi-phase-field-model-solification_2d.ipynb  # メインノートブック
-config.yaml                                         # シミュレーションパラメータ
-requirement.txt                                     # Python依存ライブラリ
-result/                                             # 出力（自動生成）
+multiphasefield-solidification-v2/
+├── src/                                              # 共通ライブラリ（パッケージ）
+│   ├── __init__.py
+│   ├── gpu_kernels.py       # CUDA デバイス関数・カーネル（ノートブックから抽出）
+│   ├── seed_modes.py        # 初期条件生成（phi, temp, grain_map）
+│   ├── orientation_utils.py # 四元数・{111}法線の計算
+│   └── plot_utils.py        # PNG 保存ユーティリティ（Agg バックエンド）
+│
+├── run_singlemode.py    # 検証用：単結晶固液界面成長（number_of_grain=2）
+├── run_twomode.py       # 検証用：2粒競合成長・粒界形成（number_of_grain=3）
+├── run_randommode.py    # 本番用：Voronoi ランダム多結晶（number_of_grain=n_solid+1）
+├── run_imagemode.py     # 本番用：画像由来粒構造（number_of_grain=色数+1）
+├── validate_modes.py    # CPU のみで初期条件・数値健全性を検証
+│
+├── config.yaml          # 全モード共通パラメータ
+├── requirement.txt      # Python依存ライブラリ
+│
+├── GPU-multi-phase-field-model-solification_2d.ipynb  # 元ノートブック（参照用）
+│
+└── result/              # 出力（自動生成）
+    ├── singlemode/      # run_singlemode.py の出力
+    ├── twomode/         # run_twomode.py の出力
+    ├── randommode/      # run_randommode.py の出力
+    └── imagemode/       # run_imagemode.py の出力
 ```
 
-### ノートブックのセル構成
+### モジュールの役割
+
+| ファイル | 提供する関数 |
+|---|---|
+| `src/gpu_kernels.py` | `kernel_update_nfmf`, `kernel_update_phasefield_active`, `kernel_update_temp` および全デバイス関数 |
+| `src/seed_modes.py` | `init_singlemode_phi`, `init_twomode_phi`, `generate_random_grain_map`, `load_grain_map_from_image`, `init_phi_from_grain_map`, `init_temperature_field`, `build_interaction_matrices` |
+| `src/orientation_utils.py` | `build_quaternion_from_config`, `rgb_to_unit_quaternion`, `load_quaternions_from_csv`, `assign_quaternions_to_grains`, `compute_rotated_n111` |
+| `src/plot_utils.py` | `save_phase_map`, `save_temperature_map` |
+
+### ノートブックのセル構成（参照用）
 
 | セル | ID | 内容 |
 |---|---|---|
-| 0 | `4b7a9ff0` | タイトル・説明（Markdown） |
-| 1 | `8dd6626f` | **設定読み込み**（config.yaml → Python変数） |
-| 2 | `81ab8d11` | **結晶方位の設定**（四元数・{111}法線の事前計算） |
-| 3 | `6f545928` | **APT 配列と相互作用行列の初期化** |
-| 4 | `4a55110e` | **界面パラメータの変換関数と行列充填** |
-| 5 | `4f450a44` | **CUDAデバイス関数**：異方性関数 $a(c)$、$b(\theta)$ |
-| 6 | `ec9e934e` | **CUDAデバイス関数**：最近接 {111} との cos 計算 |
-| 7 | `509e58d1` | **CUDAデバイス関数**：境界条件インデックス、勾配 |
-| 8 | `dc650256` | **CUDAデバイス関数**：セルごとの $\varepsilon^2$ 計算 |
-| 9 | `e6698b93` | **CUDAデバイス関数**：異方性拡散項（第1項） |
-| 10 | `e492311c` | **CUDAデバイス関数**：2階微分、トルク項 (A11–A15) |
-| 11 | `b1f44282` | **CUDAカーネル**：`kernel_update_nfmf`（APT配列更新） |
-| 12 | `cab2615b` | **CUDAカーネル**：`kernel_update_phasefield_active`（メイン更新） |
-| 13 | `95e767b6` | **CUDAカーネル**：`kernel_update_temp`（温度更新） |
-| 14 | `134d0c0d` | **初期化**（$\phi$, $T$ の初期値設定、初期図の出力） |
-| 15 | `c2b0947c` | **GPU転送**（CPU→GPU、グリッド計算） |
-| 16 | `4903b694` | **メインループ**（時間発展・可視化・保存） |
+| 0 | `d5b73807` | **設定読み込み**（import、`config.yaml` 読み込み、出力先作成） |
+| 1 | `7d0ba150` | **結晶方位の設定**（`random_110` / `image_line`、四元数・{111}法線の事前計算） |
+| 2 | `980b2eae` | **APT 配列と相互作用行列の初期化**（`mf`, `nf`, `wij`, `aij`, `mij`） |
+| 3 | `c7cc73f9` | **界面パラメータ変換**（`eps_from_gamma`, `w_from_gamma`, `mij_from_M`） |
+| 4 | `86afb621` | **CUDAデバイス関数**：異方性関数 `calc_a_from_cos`, `calc_b_from_cos` |
+| 5 | `bd13bdb7` | **CUDAデバイス関数**：最近接 {111} との cos 計算 |
+| 6 | `1562cec3` | **CUDAデバイス関数**：境界条件インデックス、勾配 |
+| 7 | `69701ca9` | **CUDAデバイス関数**：セルごとの $\varepsilon^2$ 計算 |
+| 8 | `0625991c` | **CUDAデバイス関数**：異方性拡散項（第1項） |
+| 9 | `a5aa21e6` | **CUDAデバイス関数**：2階微分、トルク項 (A11–A15) |
+| 10 | `7dddaa06` | **CUDAカーネル**：`kernel_update_nfmf`（APT配列更新） |
+| 11 | `840e0a86` | **CUDAカーネル**：`kernel_update_phasefield_active`（メイン更新） |
+| 12 | `df60f47a` | **CUDAカーネル**：`kernel_update_temp`（温度更新） |
+| 13 | `c9a33b23` | **初期化**（$\phi$, $T$ の初期値設定、初期図の保存） |
+| 14 | `13ef5be0` | **GPU転送**（CPU→GPU、グリッド設定） |
+| 15 | `37362037` | **メインループ**（時間発展・可視化・保存） |
 
 ---
 
@@ -280,10 +308,10 @@ pip install -r requirement.txt
 | `numpy` | 配列計算全般 |
 | `numba` | CUDA JIT コンパイル（GPU カーネル定義） |
 | `scipy` | 四元数 → 回転行列変換（`Rotation`） |
-| `matplotlib` | 可視化・PNG 保存 |
-| `pillow` | シード画像の読み込み（`image_line` モード） |
+| `matplotlib` | 可視化・PNG 保存（Agg バックエンド） |
+| `pillow` | 粒構造画像の読み込み（`imagemode`） |
 | `pyyaml` | `config.yaml` の読み込み |
-| `ipykernel`, `jupyter` | Jupyter Notebook 実行環境 |
+| `ipykernel`, `jupyter` | Jupyter Notebook 実行環境（ノートブック使用時のみ） |
 
 ### CUDA の確認
 
@@ -297,63 +325,92 @@ cuda.detect()            # 詳細情報
 
 ## 設定ファイル（config.yaml）
 
-すべての物理・数値パラメータをここで管理します。
-ノートブックを直接編集せずに条件を変えられます。
+すべての物理・数値パラメータをここで管理します。実行スクリプトを直接編集せずに条件を変えられます。
 
 ```yaml
-# =====================================================
-# Multi-Phase Field Solidification - Configuration
-# =====================================================
-
 grid:
-  nx: 256           # x方向グリッド数
-  ny: 256           # y方向グリッド数
-  dx: 1.0e-4        # 格子間隔 x [m]
-  dy: 1.0e-4        # 格子間隔 y [m]（現在 dx = dy を前提）
-  dt: 1.0e-4        # 時間刻み [s]
-  nsteps: 20000     # 総ステップ数
+  nx: 256
+  ny: 256
+  dx: 1.0e-4
+  dy: 1.0e-4
+  dt: 1.0e-4
+  nsteps: 20000
 
 physical:
-  T_melt: 1687      # 融点 [K]（シリコンの場合）
-  G: 1.0e+2         # 温度勾配 [K/m]（初期温度分布に使用）
-  V_pulling: 3.5e-2 # 引き抜き速度 [m/s]（冷却速度 = G × V_pulling）
-  Sf: 2.12e+4       # 融解エントロピー [J/(m³·K)]
+  T_melt: 1687
+  G: 1.0e+2             # 温度勾配 [K/m]
+  V_pulling: 5.0e-2     # 引き抜き速度 [m/s]  → 冷却速度 = G × V_pulling
+  Sf: 2.12e+4
 
 interface:
-  delta_factor: 6.0   # 界面厚さ = delta_factor × dx
-  gamma_100: 0.44     # 固液界面エネルギー（(100)基準）[J/m²]
-  gamma_GB: 0.60      # 粒界エネルギー（等方性）[J/m²]
+  delta_factor: 6.0
+  gamma_100: 0.44
+  gamma_GB: 0.60
 
 anisotropy:
-  a0_deg: 54.7        # 基準角 α₀ [degrees]
-  delta_a: 0.36       # 異方性強度 δₐ
-  mu_a: 0.6156        # 異方性プリファクター μₐ
-  p_round: 0.05       # 角の丸め係数（0に近いほどシャープなファセット）
-  ksi: 0.30           # 運動学的異方性の最小値 ξ
-  omg_deg: 10.0       # 運動学的異方性の角度スケール ω [degrees]
+  a0_deg: 54.7
+  delta_a: 0.36
+  mu_a: 0.6156
+  p_round: 0.05
+  ksi: 0.30
+  omg_deg: 10.0
 
 mobility:
-  M_SL: 5.0e-5        # 固液間モビリティ [m/(Pa·s)]
-  M_GB_ratio: 0.05    # M_GB = M_SL × M_GB_ratio（粒界のモビリティ比）
+  M_SL: 5.0e-5
+  M_GB_ratio: 0.1
 
 gpu:
-  MAX_GRAINS: 20      # 相（グレイン+液相）の最大数（カーネルのバッファサイズ）
-  KMAX: 18            # 1セル内のアクティブ相数の上限（ローカル配列サイズ）
-  threads_per_block: [16, 16]  # CUDAスレッドブロックサイズ
+  MAX_GRAINS: 20
+  KMAX: 18
+  threads_per_block: [16, 16]
 
-seed:
-  mode: "image_line"  # "random_110" または "image_line"
-  number_of_grain_fallback: 17  # random_110 モード時の固相グレイン数
-  random_seed: 42               # random_110 モード時の乱数シード
-  image_path: "path/to/seed.bmp"  # image_line モード時の BMP 画像パス
-  line_axis: "horizontal"         # 断面の向き："horizontal" または "vertical"
-  line_index: null                # 断面位置（null = 中央）
-  color_tolerance: 0              # 色の同一判定許容差（0〜255）
-  height: 32                      # 初期固相の高さ [グリッド点数]
+seed:                         # notebook (image_line モード) 専用
+  mode: "image_line"
+  number_of_grain_fallback: 17
+  random_seed: 42
+  image_path: "path/to/seed.bmp"
+  line_axis: "horizontal"
+  line_index: null
+  color_tolerance: 0
+  height: 32
 
 output:
-  dir_template: "result/ver6-5/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
-  save_every: 200   # 何ステップごとに PNG を保存するか
+  dir_template: "result/new/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
+  save_every: 200
+
+# --- 検証モード ---
+singlemode:
+  seed_height: 32
+  orientation_type: "euler"
+  euler_deg: [0.0, 0.0, 0.0]
+
+twomode:
+  seed_height: 32
+  split_ratio: 0.5
+  grain1_seed_offset: 0
+  grain2_seed_offset: 0
+  grain1:
+    orientation_type: "euler"
+    euler_deg: [0.0, 45.0, 0.0]
+  grain2:
+    orientation_type: "euler"
+    euler_deg: [0.0, 0.0, 0.0]
+
+# --- 本番モード ---
+randommode:
+  seed_height: 32
+  n_solid: 10
+  random_seed: 42
+  orientation_mode: "random"   # "random" または "file"
+  orientation_seed: 42
+  orientation_csv: ""
+
+imagemode:
+  seed_height: 32
+  image_path: "path/to/grain_map.bmp"
+  orientation_mode: "rgb"      # "random", "file", または "rgb"
+  orientation_seed: 42
+  orientation_csv: ""
 ```
 
 ### 各パラメータの詳細
@@ -399,69 +456,159 @@ output:
 
 | パラメータ | 説明 |
 |---|---|
-| `MAX_GRAINS` | `nf`/`mf` 配列の最大次元。`image_line` で検出された粒数+1 以上が必要 |
+| `MAX_GRAINS` | `nf`/`mf` 配列の最大次元。`number_of_grain` 以上が必要 |
 | `KMAX` | カーネル内ローカル配列サイズ。`MAX_GRAINS` 以上であれば安全 |
 | `threads_per_block` | CUDA スレッドブロック。通常 `[16, 16]` または `[32, 8]` |
 
-> **注意**：`MAX_GRAINS` と `KMAX` を変えた場合は、カーネルを **再コンパイル**（ノートブックを最初から再実行）する必要があります。
-
-#### `seed`
-
-詳細は [シードの設定](#シード初期結晶核の設定) セクションを参照。
-
-#### `output`
-
-`dir_template` には以下の変数が使えます：
-
-| プレースホルダー | 意味 |
-|---|---|
-| `{M_GB_ratio:.2f}` | 粒界モビリティ比（小数2桁） |
-| `{cooling_rate:.1e}` | 冷却速度 $G \cdot V$ [K/s] （指数表記） |
+> **注意**：`MAX_GRAINS` と `KMAX` を変えた場合は、カーネルを **再コンパイル**（プロセス再起動または `gpu_kernels.py` を再インポート）する必要があります。
 
 ---
 
 ## 実行方法
 
-### 1. config.yaml を編集
+### Python スクリプト（推奨）
 
-```yaml
-seed:
-  mode: "random_110"    # 外部画像不要で動作確認できる
-  number_of_grain_fallback: 10
-```
-
-### 2. Jupyter Notebook を起動
+仮想環境を有効化した状態で、モードに応じたスクリプトを実行します：
 
 ```bash
-# 仮想環境を有効化した状態で
+# 検証用：単結晶固液界面
+python run_singlemode.py
+
+# 検証用：2粒競合成長
+python run_twomode.py
+
+# 本番用：Voronoi ランダム多結晶
+python run_randommode.py
+
+# 本番用：画像由来粒構造（config.yaml の imagemode.image_path を設定してから）
+python run_imagemode.py
+```
+
+### Jupyter Notebook（元実装）
+
+```bash
 jupyter notebook
 ```
 
-`GPU-multi-phase-field-model-solification_2d.ipynb` を開き、**上から順にセルを実行**します。
+`GPU-multi-phase-field-model-solification_2d.ipynb` を開き、Cell 0 から順に実行します。
+notebook は `seed.mode: "random_110"` または `"image_line"` で動作します。
 
-> **重要**：セルを飛ばして実行すると変数未定義エラーになります。
-> 必ず Cell 1（設定読み込み）から順番に実行してください。
+> **重要**：`MAX_GRAINS` / `KMAX` を変更した後は必ず Cell 0 から全セルを再実行してください。
 
-### 3. 実行順序の確認
+### 初期条件のみ検証（GPU 不要）
 
-```
-Cell 1  → 設定読み込み
-Cell 2  → 結晶方位の計算
-Cell 3  → APT配列・相互作用行列の初期化
-Cell 4  → 界面パラメータ変換
-Cell 5-10 → CUDAデバイス関数の定義（JITコンパイルはこの時点では未実行）
-Cell 11-13 → CUDAカーネルの定義
-Cell 14 → 初期φ・T の設定と初期図の描画
-Cell 15 → GPU へのデータ転送
-Cell 16 → メインループ実行（最も時間がかかる）
+```bash
+python validate_modes.py
 ```
 
-### 4. カーネル再コンパイルが必要な場合
+CPU のみで初期条件の構造・数値健全性（phi 範囲、sum=1、四元数ノルム等）を確認できます。
 
-以下を変更したときは **Cell 1 から全セルを再実行**してください：
-- `KMAX`, `MAX_GRAINS`（ローカル配列サイズが変わる）
-- `LIQ`（定数として焼き込まれている箇所がある）
-- デバイス関数の引数・ロジック変更
+---
+
+## シミュレーションモード
+
+### モード比較
+
+| モード | スクリプト | 粒数 | 初期粒配置 | 方位指定 |
+|---|---|---|---|---|
+| `singlemode` | `run_singlemode.py` | 1固相 + 液相 | 平坦界面（y一様） | Euler角 or 四元数 |
+| `twomode` | `run_twomode.py` | 2固相 + 液相 | 左右分割 | 粒ごとに個別設定 |
+| `randommode` | `run_randommode.py` | n_solid + 液相 | Voronoi テッセレーション | random / file |
+| `imagemode` | `run_imagemode.py` | 色数 + 液相 | 画像由来 | random / file / rgb |
+
+---
+
+### singlemode（検証用）
+
+単結晶が液相へ成長するシナリオ。界面が平坦に進むことでカーネルの基本動作を確認できます。
+
+```yaml
+singlemode:
+  seed_height: 32
+  orientation_type: "euler"
+  euler_deg: [0.0, 0.0, 0.0]
+  # orientation_type: "quaternion"
+  # quaternion: [0.0, 0.0, 0.0, 1.0]
+```
+
+出力：`result/singlemode/`
+
+---
+
+### twomode（検証用）
+
+2粒が競合成長し粒界を形成するシナリオ。方位差による成長速度の違いを確認できます。
+
+```yaml
+twomode:
+  seed_height: 32
+  split_ratio: 0.5          # grain1/grain2 の境界位置（0〜1）
+  grain1_seed_offset: 0     # grain1 の初期固相高さ追加オフセット [grid pts]
+  grain2_seed_offset: 0
+  grain1:
+    orientation_type: "euler"
+    euler_deg: [0.0, 45.0, 0.0]
+  grain2:
+    orientation_type: "euler"
+    euler_deg: [0.0, 0.0, 0.0]
+```
+
+出力：`result/twomode/`
+
+---
+
+### randommode（本番用）
+
+Voronoi テッセレーションで $n\_solid$ 個の粒を生成。多粒競合成長・多重粒界の挙動を確認できます。
+
+```yaml
+randommode:
+  seed_height: 32
+  n_solid: 10               # 固相粒数（number_of_grain = n_solid + 1）
+  random_seed: 42           # Voronoi シード点配置の乱数シード
+  orientation_mode: "random"  # "random" または "file"
+  orientation_seed: 42
+  orientation_csv: ""       # orientation_mode = "file" のとき使用
+```
+
+**`n_solid + 1 > MAX_GRAINS` のとき実行時エラーになります**（事前チェック）。
+
+出力：`result/randommode/`
+
+---
+
+### imagemode（本番用）
+
+外部画像から粒構造を読み込みます。各ユニーク RGB 色 = 1粒として自動的に粒 ID を割り当てます。
+
+```yaml
+imagemode:
+  seed_height: 32
+  image_path: "D:/path/to/grain_map.bmp"  # 必須
+  orientation_mode: "rgb"   # "random", "file", または "rgb"
+  orientation_seed: 42
+  orientation_csv: ""
+```
+
+**`orientation_mode` の選択肢：**
+
+| 値 | 意味 |
+|---|---|
+| `"random"` | 各粒にランダムな単位四元数（`orientation_seed` で再現性確保） |
+| `"file"` | CSV から読み込み（1行 = 1粒、列 = x, y, z, w） |
+| `"rgb"` | RGB 値から決定論的に四元数を生成（同色 → 同方位、ノートブック準拠） |
+
+**RGB → 四元数の変換（`rgb_to_unit_quaternion`、ノートブック準拠）：**
+
+$$v_k = \frac{R_k}{255} \cdot 2 - 1 \quad (k = R, G, B)$$
+
+$$w = \sqrt{\max(1 - |v|^2,\; 0)}, \quad q = (v_x, v_y, v_z, w) / |q|$$
+
+これにより RGB 値が単位四元数（SciPy の `(x, y, z, w)` 形式）として解釈されます。
+
+**検出色数 + 1 > `MAX_GRAINS` のとき実行時エラーになります**（使用する画像の色数を事前に確認してください）。
+
+出力：`result/imagemode/`
 
 ---
 
@@ -469,16 +616,25 @@ Cell 16 → メインループ実行（最も時間がかかる）
 
 ### 保存場所
 
-`config.yaml` の `output.dir_template` で指定したディレクトリに PNG が保存されます。
-
-デフォルト例：`result/ver6-5/0.05/3.5e+00/`
-- `0.05` → `M_GB_ratio = 0.05`
-- `3.5e+00` → 冷却速度 $G \cdot V = 100 \times 0.035 = 3.5$ K/s
+| モード | 出力ディレクトリ |
+|---|---|
+| `singlemode` | `result/singlemode/` |
+| `twomode` | `result/twomode/` |
+| `randommode` | `result/randommode/` |
+| `imagemode` | `result/imagemode/` |
+| notebook | `result/new/{M_GB_ratio:.2f}/{cooling_rate:.1e}/` |
 
 ### 保存される画像
 
+全モード共通で以下の3ファイルを最初に保存します：
+
 - `step_0.png`：初期状態のグレインマップ
-- `step_200.png`, `step_400.png`, ...：`save_every` ステップごとのグレインマップ
+- `initial_phase_map.png`：`step_0.png` と同内容（別名コピー）
+- `initial_temperature.png`：初期温度分布
+
+その後、`config.yaml` の `save_every` ステップごとに：
+
+- `step_200.png`, `step_400.png`, ...：グレインマップ
 
 ### 画像の見方
 
@@ -489,65 +645,18 @@ Cell 16 → メインループ実行（最も時間がかかる）
 
 ---
 
-## シード（初期結晶核）の設定
+## 主要セルの詳細説明
 
-### モード 1：`random_110`
+### Cell 0：設定読み込み
 
-ランダムな方位を持つグレインを x 方向に均等に並べます。
+Cell 0 ではライブラリの import、`config.yaml` の読み込み、各パラメータの Python 変数化、出力ディレクトリの作成を行います。
 
-```yaml
-seed:
-  mode: "random_110"
-  number_of_grain_fallback: 17   # グレイン数（液相含まず）
-  random_seed: 42                 # 乱数シード（再現性のため）
-  height: 32                      # 初期固相の高さ [グリッド点]
+```python
+with open(CONFIG_PATH, "r") as f:
+    cfg = yaml.safe_load(f)
 ```
 
-**方位の決め方**（`random_110` モード）：
-
-1. $\langle 110 \rangle$ 方向（$[1, 1, 0]$ 単位ベクトル）を面外軸として設定
-2. グローバル z 軸から $\langle 110 \rangle$ への回転 $R_\text{align}$ を計算
-3. 各グレインに対してランダムな角度 $\theta \in [0, 2\pi)$ で $\langle 110 \rangle$ 周りに回転 $R_\text{twist}$
-4. 合成回転 $R = R_\text{twist} \cdot R_\text{align}$ を四元数で保存
-
-この設定は「面内で任意に回転した結晶が、[110] 方向を面外軸として持つ」2D 設定を再現します。
-
-### モード 2：`image_line`
-
-BMP 画像の 1 ライン（断面）から各ピクセルの RGB 値 → 四元数 → 結晶方位を読み取ります。
-論文の計算で生成した 3D 組織の断面を 2D シードとして使う場合に有効です。
-
-```yaml
-seed:
-  mode: "image_line"
-  image_path: "path/to/seed.bmp"   # RGB エンコードされた方位画像
-  line_axis: "horizontal"           # "horizontal"：水平ライン、"vertical"：垂直ライン
-  line_index: null                  # null = 中央のライン
-  color_tolerance: 0                # 隣接ピクセルが「同一グレイン」とみなす色差許容値
-  height: 32                        # 初期固相の高さ
-```
-
-**RGB → 四元数の変換**（`rgb_to_unit_quaternion`）：
-
-$$v_k = \frac{R_k}{255} \cdot 2 - 1 \quad (k = R, G, B)$$
-
-$$w = \sqrt{\max(1 - |v|^2, 0)}, \quad q = (v_x, v_y, v_z, w) / |q|$$
-
-これにより RGB 値が単位四元数（SciPy の `(x, y, z, w)` 形式）として解釈されます。
-
-**グレイン分割**（`segment_seed_line`）：
-
-隣接ピクセルの RGB 差が `color_tolerance` を超えたら別グレインとして分割します。
-`color_tolerance = 0` はアンチエイリアスなしの完全分割。
-アンチエイリアス画像の場合は `color_tolerance = 5〜20` 程度に設定します。
-
-> `image_line` モードで検出されたグレイン数+1（液相）が `MAX_GRAINS` を超えるとエラーになります。
-
----
-
-## 各セルの詳細説明
-
-### Cell 2：結晶方位と {111} 法線の事前計算
+### Cell 1：結晶方位と {111} 法線の事前計算
 
 ```python
 grain_quaternions[gid]  # shape: (N, 4), SciPy (x,y,z,w) 形式
@@ -560,7 +669,7 @@ grain_n111[gid]         # shape: (N, 8, 3), 各グレインの8つの{111}方向
 8つの {111} 方向：$\frac{1}{\sqrt{3}}(\pm1, \pm1, \pm1)$ を回転行列で変換したもの。
 2D シミュレーションでは $(n_x, n_y)$ 成分のみ使用します。
 
-### Cell 4：界面パラメータ変換
+### Cell 3：界面パラメータ変換
 
 相互作用行列の充填：
 
@@ -572,7 +681,7 @@ grain_n111[gid]         # shape: (N, 8, 3), 各グレインの8つの{111}方向
 
 > 固液界面の $\varepsilon$ と $W$ は **異方性により実行時に上書き** されます（`aij`/`wij` に格納された値はデフォルト値）。
 
-### Cell 5：デバイス関数 `calc_a_from_cos` / `calc_b_from_cos`
+### Cell 4：デバイス関数 `calc_a_from_cos` / `calc_b_from_cos`
 
 ```python
 @cuda.jit(device=True, inline=True)
@@ -590,7 +699,7 @@ def calc_b_from_cos(best_cost, ksi, omg):
     # 戻り値: 運動学的異方性係数 b(θ)
 ```
 
-### Cell 7：境界条件インデックス
+### Cell 6：境界条件インデックス
 
 ```python
 idx_xp(l, nx)  # l+1（端では 0 へラップ）：周期境界
@@ -599,7 +708,7 @@ idx_yp(m, ny)  # m+1（端では ny-1：Neumann反射）
 idx_ym(m, ny)  # m-1（端では 0：Neumann反射）
 ```
 
-### Cell 9：`aniso_term1_solid`
+### Cell 8：`aniso_term1_solid`
 
 固液界面の異方性 Laplacian 項（いわゆる「主要項」）：
 
@@ -607,7 +716,7 @@ $$\nabla \cdot (\varepsilon^2 \nabla \phi_0) \approx \frac{({\varepsilon^2_c + \
 
 セルごとに $\varepsilon^2 = \varepsilon_0^2 \cdot a^2(\cos\theta)$ を計算してから差分します。
 
-### Cell 10：トルク項 `torque_A11`
+### Cell 9：トルク項 `torque_A11`
 
 異方性がある場合に生まれる付加項で、界面の向きを結晶の優先方向に引き付ける効果があります。
 論文 Appendix A の式 (A11)〜(A15) に対応します。
@@ -617,7 +726,7 @@ $$\nabla \cdot (\varepsilon^2 \nabla \phi_0) \approx \frac{({\varepsilon^2_c + \
 phixx, phiyy, phixy = d2_phi_xy(phi, 0, l, m, nx, ny, dx)
 ```
 
-### Cell 11：`kernel_update_nfmf`
+### Cell 10：`kernel_update_nfmf`
 
 毎ステップ呼び出し、各セルの「アクティブ相リスト」を更新します。
 
@@ -628,7 +737,7 @@ phi[i, l, m] > 0  OR  隣接セルのいずれかで phi[i, ...] > 0
 
 後者の条件（隣接セルチェック）により、「次のステップで界面が広がる」相も事前にアクティブと判定します。
 
-### Cell 12：`kernel_update_phasefield_active`（メインカーネル）
+### Cell 11：`kernel_update_phasefield_active`（メインカーネル）
 
 メインの時間発展カーネル。1 GPU スレッドが 1 セル $(l, m)$ を担当します。
 
@@ -655,7 +764,7 @@ driving_force = -Sf * (T - T_melt)  # T < T_melt で負 → 固相が成長
 ```yaml
 physical:
   G: 1.0e+3          # 温度勾配を10倍に
-  V_pulling: 3.5e-2  # 速度は同じ → 冷却速度10倍
+  V_pulling: 5.0e-2  # 速度は同じ → 冷却速度10倍
 ```
 
 または
@@ -663,24 +772,23 @@ physical:
 ```yaml
 physical:
   G: 1.0e+2
-  V_pulling: 3.5e-1  # 速度を10倍
+  V_pulling: 5.0e-1  # 速度を10倍
 ```
 
 どちらも $\dot{T} = G \cdot V$ が変わります。
 
-### グレイン数を変えたい（`random_110`）
+### グレイン数を変えたい（randommode）
 
 ```yaml
-seed:
-  mode: "random_110"
-  number_of_grain_fallback: 30   # 30グレイン
+randommode:
+  n_solid: 15        # 15グレイン
 
 gpu:
-  MAX_GRAINS: 35    # グレイン数 + 液相(1) + 余裕
-  KMAX: 30          # MAX_GRAINS に合わせる
+  MAX_GRAINS: 20     # n_solid + 1 = 16 以上なら OK（余裕あり）
+  KMAX: 18
 ```
 
-> `MAX_GRAINS` を変えたら **カーネルを再コンパイル**（Cell 1 から再実行）。
+> `MAX_GRAINS` を変えたら **カーネルを再コンパイル**（プロセス再起動）。
 
 ### 計算領域を大きくしたい
 
@@ -705,29 +813,34 @@ anisotropy:
 
 ```yaml
 mobility:
-  M_GB_ratio: 0.5    # デフォルト 0.05 → 10倍
+  M_GB_ratio: 0.5    # デフォルト 0.10 → 5倍
 ```
 
 ---
 
 ## よくあるエラーと対処法
 
-### `FileNotFoundError: seed image not found`
+### `FileNotFoundError: image not found`
+
+`imagemode` で `image_path` が存在しない場合。
 
 ```yaml
-seed:
-  mode: "random_110"   # 画像不要なこちらに切り替え
+imagemode:
+  image_path: "D:/正しいパス/grain_map.bmp"
 ```
 
-または `image_path` を実際のファイルパスに修正してください。
+### `ValueError: imagemode.image_path is not set`
 
-### `ValueError: Detected phases=XX exceeds MAX_GRAINS`
+`imagemode.image_path` が空文字のまま実行した場合。`config.yaml` で正しいパスを設定してください。
 
-`image_line` モードで検出されたグレイン数が多すぎます。
+### `RuntimeError: number_of_grain=XX exceeds MAX_GRAINS=YY`
+
+`randommode` や `imagemode` で検出された粒数が多すぎます。
 
 対処法：
-1. `MAX_GRAINS` を増やす（カーネル再コンパイル必要）
-2. `color_tolerance` を増やして隣接グレインを統合
+1. `gpu.MAX_GRAINS` を増やす（カーネル再コンパイル必要）
+2. `randommode.n_solid` を減らす
+3. `imagemode` では色数の少ない画像を使うか、前処理で色を削減する
 
 ### `CUDA out of memory`
 
@@ -745,8 +858,8 @@ python -c "from numba import cuda; cuda.detect()"
 
 ### カーネルが古い定義を使っている
 
-Jupyter でカーネル定義セルだけを再実行しても numba の JIT キャッシュが残ることがあります。
-**Kernel → Restart & Run All** で全セルを最初から実行してください。
+`MAX_GRAINS` / `KMAX` を変更した後は Python プロセスを再起動してください。
+Jupyter の場合は **Kernel → Restart & Run All** で全セルを最初から実行してください。
 
 ---
 
