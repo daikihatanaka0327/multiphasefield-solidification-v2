@@ -32,11 +32,51 @@ def calc_a_from_cos(cost, a0, delta_a, mu_a, p_round):
 
 
 @cuda.jit(device=True, inline=True)
-def calc_b_from_cos(best_cost, ksi, omg):
-    """Kinetic anisotropy factor b(θ). Eq.(7),(9)."""
-    theta_mod = math.acos(best_cost)
-    theta_omg = theta_mod * omg
-    return ksi + (1.0 - ksi) * math.tan(theta_omg) * math.tanh(1.0 / math.tan(theta_omg))
+def calc_b_from_cos(best_cost, ksi, theta_c_rad):
+    """
+    Revised kinetic anisotropy factor b(theta).
+
+    Intended to match Fig.1(c) of the paper:
+      - b(theta=0) = ksi
+      - cusp ends at theta_c_rad
+      - b(theta >= theta_c_rad) = 1
+
+    Parameters
+    ----------
+    best_cost : float
+        cos(theta)
+    ksi : float
+        cusp depth parameter (zeta/xi in paper notation)
+    theta_c_rad : float
+        cusp end angle in radians, e.g. 10 deg -> pi/18
+    """
+    # clamp for safety
+    c = best_cost
+    if c > 1.0:
+        c = 1.0
+    elif c < -1.0:
+        c = -1.0
+
+    theta = math.acos(c)
+
+    # saturate outside cusp region
+    if theta >= theta_c_rad:
+        return 1.0
+
+    # normalized angle in [0, 1)
+    x = theta / theta_c_rad
+
+    # map x in [0,1) to y in [0, pi/2)
+    # so that b rises smoothly from ksi to ~1
+    eps = 1.0e-6
+    y = 0.5 * math.pi * x
+    if y > 0.5 * math.pi - eps:
+        y = 0.5 * math.pi - eps
+    if y < eps:
+        y = eps
+
+    t = math.tan(y)
+    return ksi + (1.0 - ksi) * t * math.tanh(1.0 / t)
 
 
 # ─── Boundary condition helpers ───────────────────────────────────────────────
@@ -196,7 +236,7 @@ def facet_cos_and_nxy_from_grad(phix, phiy, n111, solidid, g2_floor):
 
 @cuda.jit(device=True, inline=True)
 def da_dphixy_A12(phi, l, m, nx, ny, dx, solidid,
-                  a0, delta_a, mu_a, ksi, p_round, n111, g2_floor):
+                  a0, delta_a, mu_a, p_round, n111, g2_floor):
     """Return (a, da/dφ_x, da/dφ_y) at cell (l,m). Paper Appendix A12."""
     phix, phiy = grad_phi_xy(phi, LIQ, l, m, nx, ny, dx)
     q = phix * phix + phiy * phiy
@@ -228,16 +268,16 @@ def da_dphixy_A12(phi, l, m, nx, ny, dx, solidid,
 
 @cuda.jit(device=True, inline=True)
 def d_dx_da_dphix_and_d_dy_da_dphiy_A13(phi, l, m, nx, ny, dx,
-                                         solidid, a0, delta_a, mu_a, ksi,
+                                         solidid, a0, delta_a, mu_a,
                                          p_round, n111, g2_floor):
     """Central-difference approximation of A13 terms."""
     lp = idx_xp(l, nx); lm = idx_xm(l, nx)
     mp = idx_yp(m, ny); mm = idx_ym(m, ny)
 
-    _, da_dphix_lp, _ = da_dphixy_A12(phi, lp, m,  nx, ny, dx, solidid, a0, delta_a, mu_a, ksi, p_round, n111, g2_floor)
-    _, da_dphix_lm, _ = da_dphixy_A12(phi, lm, m,  nx, ny, dx, solidid, a0, delta_a, mu_a, ksi, p_round, n111, g2_floor)
-    _, _, da_dphiy_mp = da_dphixy_A12(phi, l,  mp, nx, ny, dx, solidid, a0, delta_a, mu_a, ksi, p_round, n111, g2_floor)
-    _, _, da_dphiy_mm = da_dphixy_A12(phi, l,  mm, nx, ny, dx, solidid, a0, delta_a, mu_a, ksi, p_round, n111, g2_floor)
+    _, da_dphix_lp, _ = da_dphixy_A12(phi, lp, m,  nx, ny, dx, solidid, a0, delta_a, mu_a, p_round, n111, g2_floor)
+    _, da_dphix_lm, _ = da_dphixy_A12(phi, lm, m,  nx, ny, dx, solidid, a0, delta_a, mu_a, p_round, n111, g2_floor)
+    _, _, da_dphiy_mp = da_dphixy_A12(phi, l,  mp, nx, ny, dx, solidid, a0, delta_a, mu_a, p_round, n111, g2_floor)
+    _, _, da_dphiy_mm = da_dphixy_A12(phi, l,  mm, nx, ny, dx, solidid, a0, delta_a, mu_a, p_round, n111, g2_floor)
 
     d_dx = (da_dphix_lp - da_dphix_lm) * (0.5 / dx)
     d_dy = (da_dphiy_mp - da_dphiy_mm) * (0.5 / dx)
@@ -249,7 +289,7 @@ def d_dx_da_dphix_and_d_dy_da_dphiy_A13(phi, l, m, nx, ny, dx,
 
 @cuda.jit(device=True, inline=True)
 def torque_A11(phi, l, m, nx, ny, dx, solidid, eps0_sl,
-               a0, delta_a, mu_a, ksi, p_round, n111, g2_floor):
+               a0, delta_a, mu_a, p_round, n111, g2_floor):
     """Full torque term (ε₀²)(Ex + Ey). Paper Appendix A11, 3-term form."""
     phix, phiy = grad_phi_xy(phi, LIQ, l, m, nx, ny, dx)
     q = phix * phix + phiy * phiy
@@ -261,7 +301,7 @@ def torque_A11(phi, l, m, nx, ny, dx, solidid, eps0_sl,
     q_y = 2.0 * (phix * phixy + phiy * phiyy)
 
     a_val, da_dphix, da_dphiy = da_dphixy_A12(
-        phi, l, m, nx, ny, dx, solidid, a0, delta_a, mu_a, ksi, p_round, n111, g2_floor)
+        phi, l, m, nx, ny, dx, solidid, a0, delta_a, mu_a, p_round, n111, g2_floor)
 
     cos_signed, cos_abs, nxn, nyn = facet_cos_and_nxy_from_grad(
         phix, phiy, n111, solidid, g2_floor)
@@ -283,7 +323,7 @@ def torque_A11(phi, l, m, nx, ny, dx, solidid, eps0_sl,
     da_dy = mu_a * delta_a * coef * c_y
 
     d_dx_da_dphix, d_dy_da_dphiy = d_dx_da_dphix_and_d_dy_da_dphiy_A13(
-        phi, l, m, nx, ny, dx, solidid, a0, delta_a, mu_a, ksi, p_round, n111, g2_floor)
+        phi, l, m, nx, ny, dx, solidid, a0, delta_a, mu_a, p_round, n111, g2_floor)
 
     # (I) + (II) + (III) for x and y
     Ex = (da_dx * da_dphix * q) + (a_val * d_dx_da_dphix * q) + (a_val * da_dphix * q_x)
@@ -325,14 +365,19 @@ def kernel_update_phasefield_active(phi, phi_new, temp, mf, nf,
                                      dx, dt, T_melt, Sf,
                                      eps0_sl, w0_sl,
                                      a0, delta_a, mu_a, p_round,
-                                     g2_floor, ksi, omg):
+                                     g2_floor, ksi, theta_c_rad):
     """Main phase field time-step kernel with anisotropic solid-liquid energy.
 
     Implements the multi-phase field model with:
       - Anisotropic gradient energy (ε²(θ))
       - Torque term (A11)
-      - Anisotropic kinetics (b(θ))
+      - Anisotropic kinetics b(θ) via calc_b_from_cos(cos, ksi, theta_c_rad)
       - APT (active parameter tracking) for efficiency
+
+    Parameters
+    ----------
+    ksi         : cusp depth (b=ksi at theta=0, b=1 at theta>=theta_c_rad)
+    theta_c_rad : cusp end angle [radians], e.g. 10 deg -> pi/18
     """
     l, m = cuda.grid(2)
     if l >= nx or m >= ny:
@@ -357,10 +402,10 @@ def kernel_update_phasefield_active(phi, phi_new, temp, mf, nf,
                 a0, delta_a, mu_a, p_round, n111, g2_floor)
             lap_sl[t] += torque_A11(
                 phi, l, m, nx, ny, dx, gid, eps0_sl,
-                a0, delta_a, mu_a, ksi, p_round, n111, g2_floor)
+                a0, delta_a, mu_a, p_round, n111, g2_floor)
             gx, gy   = grad_phi_xy(phi, LIQ, l, m, nx, ny, dx)
             best_cos = best_cos_from_grad(gx, gy, n111, gid, g2_floor)
-            b_sl[t]  = calc_b_from_cos(best_cos, ksi, omg)
+            b_sl[t]  = calc_b_from_cos(best_cos, ksi, theta_c_rad)
 
     # Dominant solid grain for anisotropic w_sl
     i_s  = 1
