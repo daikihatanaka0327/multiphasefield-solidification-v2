@@ -1,7 +1,20 @@
 """
 seed_modes.py
 =============
-Initial condition generation for singlemode and twomode simulations.
+Initial condition generation for all simulation modes.
+
+Functions
+---------
+singlemode / twomode (validation):
+  init_singlemode_phi, init_twomode_phi
+
+randommode / imagemode (production):
+  generate_random_grain_map   -- Voronoi tessellation
+  load_grain_map_from_image   -- label-image import
+  init_phi_from_grain_map     -- phi array from grain map
+
+shared:
+  init_temperature_field, build_interaction_matrices
 
 All functions return NumPy arrays in float32 (phi, temp) or int32 (mf, nf)
 that match the dtypes expected by the CUDA kernels and GPU transfer code.
@@ -125,6 +138,126 @@ def init_temperature_field(nx: int, ny: int, T_melt: float, G: float,
     temp    = np.empty((nx, ny), dtype=np.float32)
     temp[:, :] = temp_1d[np.newaxis, :]
     return temp
+
+
+def generate_random_grain_map(nx: int, ny: int, n_solid: int,
+                               random_seed: int = 42) -> np.ndarray:
+    """Generate a Voronoi-based random grain map.
+
+    Places n_solid seed points uniformly at random in the nx x ny grid and
+    assigns each cell to the nearest seed point (Euclidean distance).
+
+    Parameters
+    ----------
+    nx, ny      : grid dimensions
+    n_solid     : number of solid grain seeds (grain IDs will be 1..n_solid)
+    random_seed : integer seed for reproducibility
+
+    Returns
+    -------
+    grain_map : np.ndarray, shape (nx, ny), dtype int32
+        Values 1..n_solid.  Every cell is assigned to exactly one grain.
+    """
+    rng = np.random.default_rng(random_seed)
+    # Seed point coordinates — shape (n_solid, 1, 1) for broadcasting
+    seeds_x = rng.uniform(0, nx, n_solid).reshape(-1, 1, 1)
+    seeds_y = rng.uniform(0, ny, n_solid).reshape(-1, 1, 1)
+
+    lx = np.arange(nx, dtype=np.float32).reshape(1, nx, 1)   # (1, nx, 1)
+    ly = np.arange(ny, dtype=np.float32).reshape(1, 1, ny)   # (1, 1, ny)
+
+    dist2 = (lx - seeds_x) ** 2 + (ly - seeds_y) ** 2       # (n_solid, nx, ny)
+    grain_map = (np.argmin(dist2, axis=0) + 1).astype(np.int32)  # 1..n_solid
+    return grain_map
+
+
+def load_grain_map_from_image(image_path: str, nx: int, ny: int) -> tuple:
+    """Load a grain structure from an image file.
+
+    The image is resized to (nx, ny) using nearest-neighbor interpolation.
+    Each unique RGB colour in the resized image becomes one grain.
+    Grain IDs are assigned 1..n_solid in the order they are first
+    encountered by np.unique (ascending encoded-colour value).
+
+    Parameters
+    ----------
+    image_path : path to the grain-map image (BMP, PNG, TIFF, ...)
+    nx, ny     : target grid dimensions
+
+    Returns
+    -------
+    grain_map  : np.ndarray, shape (nx, ny), dtype int32 -- values 1..n_solid
+    n_solid    : int -- number of distinct grains found
+    gid_to_rgb : dict {gid: (R, G, B)} -- original colour for each grain ID
+    """
+    from PIL import Image as _PILImage
+
+    img = _PILImage.open(image_path).convert("RGB")
+    # PIL resize argument is (width, height); width=nx, height=ny matches our axes
+    img_resized = img.resize((nx, ny), _PILImage.NEAREST)
+    arr = np.array(img_resized, dtype=np.uint8)    # (ny, nx, 3) -- PIL is h x w
+    arr = arr.transpose(1, 0, 2)                   # (nx, ny, 3) -- match grid axes
+
+    # Encode RGB as a single int32 for fast unique detection
+    encoded = (arr[:, :, 0].astype(np.int32) * 65536
+               + arr[:, :, 1].astype(np.int32) * 256
+               + arr[:, :, 2].astype(np.int32))    # (nx, ny)
+
+    unique_vals, inverse = np.unique(encoded, return_inverse=True)
+    grain_map = (inverse + 1).reshape(nx, ny).astype(np.int32)  # 1..n_unique
+    n_solid = int(unique_vals.shape[0])
+
+    gid_to_rgb = {}
+    for gid0, val in enumerate(unique_vals):
+        r = int((val >> 16) & 0xFF)
+        g = int((val >> 8) & 0xFF)
+        b = int(val & 0xFF)
+        gid_to_rgb[gid0 + 1] = (r, g, b)
+
+    return grain_map, n_solid, gid_to_rgb
+
+
+def init_phi_from_grain_map(grain_map: np.ndarray, n_solid: int,
+                             nx: int, ny: int,
+                             dy: float, delta: float,
+                             seed_height: int) -> np.ndarray:
+    """Build the initial phase field from a grain map.
+
+    A tanh diffuse solid-liquid interface is placed at y = seed_height.
+    Below this line each cell's solid fraction is assigned to the grain ID
+    given by grain_map.  Above the line the cell is pure liquid.
+
+    Parameters
+    ----------
+    grain_map   : np.ndarray, shape (nx, ny), int32, values 1..n_solid
+    n_solid     : number of solid grains
+    nx, ny      : grid dimensions
+    dy          : grid spacing in y [m]
+    delta       : interface thickness parameter [m]  (= delta_factor * dx)
+    seed_height : initial solid front height [grid points]
+
+    Returns
+    -------
+    phi : np.ndarray, shape (n_solid + 1, nx, ny), dtype float32
+        phi[0]      = liquid phase field
+        phi[1..N-1] = solid grain phase fields
+    """
+    N   = n_solid + 1
+    phi = np.zeros((N, nx, ny), dtype=np.float32)
+
+    factor   = np.float32(2.2 / delta)
+    m_arr    = np.arange(ny, dtype=np.float64)
+    dist_arr = m_arr * dy - seed_height * dy           # positive above interface
+    phi_s_1d = (0.5 * (1.0 - np.tanh(factor * dist_arr))).astype(np.float32)
+
+    # Broadcast 1-D tanh profile to (nx, ny): shape (1, ny) -> (nx, ny)
+    phi_s_2d = np.broadcast_to(phi_s_1d[np.newaxis, :], (nx, ny))
+
+    for gid in range(1, n_solid + 1):
+        phi[gid] = np.where(grain_map == gid, phi_s_2d, 0.0)
+
+    phi[0] = np.clip(1.0 - phi[1:].sum(axis=0), 0.0, 1.0)
+    return phi
 
 
 def build_interaction_matrices(N: int,

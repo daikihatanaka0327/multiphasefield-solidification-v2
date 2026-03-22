@@ -76,3 +76,26 @@ twomode:
   grain2:
     orientation_type: "euler"
     euler_deg: [0.0, 0.0, 0.0]
+
+# ---------------------------------------------------------------
+# randommode (used by run_randommode.py)
+# ---------------------------------------------------------------
+
+randommode:
+  seed_height: 32              # Initial solid front height [grid points]
+  n_solid: 10                  # Number of solid grains (number_of_grain = n_solid + 1)
+  random_seed: 42              # Voronoi seed-point placement RNG seed
+  orientation_mode: "random"   # "random" or "file"
+  orientation_seed: 42         # RNG seed for quaternion generation (mode=random)
+  orientation_csv: ""          # Path to CSV (used if orientation_mode = "file")
+
+# ---------------------------------------------------------------
+# imagemode (used by run_imagemode.py)
+# ---------------------------------------------------------------
+
+imagemode:
+  seed_height: 32              # Initial solid front height [grid points]
+  image_path: "D:/hatanaka/phasefield/generated/seed0064_encode_XZ_111.bmp"               # Path to grain-map image (BMP, PNG, TIFF, ...)
+  orientation_mode: "rgb"   # "random", "file", or "rgb"
+  orientation_seed: 42         # RNG seed (used if orientation_mode = "random")
+  orientation_csv: ""          # Path to CSV (used if orientation_mode = "file")
