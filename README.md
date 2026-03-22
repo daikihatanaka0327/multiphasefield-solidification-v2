@@ -70,7 +70,7 @@ $\sum_i \phi_i = 1$ の拘束条件を満たします。
 
 ### 進化方程式（論文 Eq. 1）
 
-$$\frac{\partial \phi_i}{\partial t} = -\frac{2}{n} \sum_{j=1}^{n} m_{ij} \left\{ \sum_{k=1}^{n} \left[ \frac{1}{2}\left(\varepsilon_{ik}^2 - \varepsilon_{jk}^2\right)\nabla^2\phi_k + \left(w_{ik} - w_{jk}\right)\phi_k \right] - \frac{8}{\pi}\sqrt{\phi_i \phi_j} \,\Delta g_{ij} \right\}$$
+$$\frac{\partial \phi_i}{\partial t} = -\frac{2}{n} \sum_{j=1}^{n} m_{ij} \left\lbrace \sum_{k=1}^{n} \left[ \frac{1}{2}\left(\varepsilon_{ik}^2 - \varepsilon_{jk}^2\right)\nabla^2\phi_k + \left(w_{ik} - w_{jk}\right)\phi_k \right] - \frac{8}{\pi}\sqrt{\phi_i \phi_j} \,\Delta g_{ij} \right\rbrace$$
 
 ここで $n$ は当該セルでのアクティブ相数、$m_{ij}$ はフェーズフィールドモビリティです。
 
@@ -116,7 +116,7 @@ $$\varepsilon^2\nabla^2\phi \;\longrightarrow\; \nabla\!\left(\varepsilon(\theta
 
 右辺第2項が「トルク項」で、3つのサブ項 (A11) に展開されます：
 
-$$= \varepsilon_0^2 \sum_{p=x,y} \left\{ \underbrace{\frac{\partial a}{\partial p}\frac{\partial a}{\partial \phi_p}|\nabla\phi|^2}_{\text{(I)}} + \underbrace{a\frac{\partial}{\partial p}\!\left(\frac{\partial a}{\partial \phi_p}\right)|\nabla\phi|^2}_{\text{(II)}} + \underbrace{a\frac{\partial a}{\partial \phi_p}\frac{\partial}{\partial p}\!\left(|\nabla\phi|^2\right)}_{\text{(III)}} \right\}$$
+$$= \varepsilon_0^2 \sum_{p=x,y} \left\lbrace \underbrace{\frac{\partial a}{\partial p}\frac{\partial a}{\partial \phi_p}|\nabla\phi|^2}_{\text{(I)}} + \underbrace{a\frac{\partial}{\partial p}\!\left(\frac{\partial a}{\partial \phi_p}\right)|\nabla\phi|^2}_{\text{(II)}} + \underbrace{a\frac{\partial a}{\partial \phi_p}\frac{\partial}{\partial p}\!\left(|\nabla\phi|^2\right)}_{\text{(III)}} \right\rbrace$$
 
 各偏微分は (A12)–(A15) に従い $\partial\cos\theta/\partial p$、$\partial\cos\theta/\partial\phi_p$ に帰着させて差分で実装。
 
