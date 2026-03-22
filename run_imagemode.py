@@ -51,22 +51,22 @@ import numpy as np
 import yaml
 from numba import cuda
 
-from gpu_kernels import (
+from src.gpu_kernels import (
     kernel_update_nfmf,
     kernel_update_phasefield_active,
     kernel_update_temp,
 )
-from orientation_utils import (
+from src.orientation_utils import (
     assign_quaternions_to_grains,
     compute_rotated_n111,
 )
-from seed_modes import (
+from src.seed_modes import (
     load_grain_map_from_image,
     init_phi_from_grain_map,
     init_temperature_field,
     build_interaction_matrices,
 )
-from plot_utils import save_phase_map, save_temperature_map, save_run_config
+from src.plot_utils import save_phase_map, save_temperature_map, save_run_config
 
 
 # --- Configuration -----------------------------------------------------------

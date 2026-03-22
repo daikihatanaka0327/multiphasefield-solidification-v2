@@ -218,40 +218,40 @@ GPU のローカルメモリ（レジスタ or ローカルメモリ）は静的
 ## コード構成
 
 ```
-GPU-multi-phase-field-model-solification_2d.ipynb  # 元ノートブック（参照用）
-config.yaml                                         # 全モード共通パラメータ
-requirement.txt                                     # Python依存ライブラリ
-result/                                             # 出力（自動生成）
-  singlemode/                                       # run_singlemode.py の出力
-  twomode/                                          # run_twomode.py の出力
-  randommode/                                       # run_randommode.py の出力
-  imagemode/                                        # run_imagemode.py の出力
-  new/{M_GB_ratio}/{cooling_rate}/                  # notebook 出力（旧）
-
-# ---- 実行スクリプト（モード別） ----
-run_singlemode.py    # 検証用：単結晶固液界面成長（number_of_grain=2）
-run_twomode.py       # 検証用：2粒競合成長・粒界形成（number_of_grain=3）
-run_randommode.py    # 本番用：Voronoi ランダム多結晶（number_of_grain=n_solid+1）
-run_imagemode.py     # 本番用：画像由来粒構造（number_of_grain=色数+1）
-
-# ---- 共通ライブラリ ----
-gpu_kernels.py       # CUDA デバイス関数・カーネル（ノートブックから抽出）
-seed_modes.py        # 初期条件生成（phi, temp, grain_map）
-orientation_utils.py # 四元数・{111}法線の計算
-plot_utils.py        # PNG 保存ユーティリティ（Agg バックエンド）
-
-# ---- 検証スクリプト ----
-validate_modes.py    # CPU のみで初期条件・数値健全性を検証
+multiphasefield-solidification-v2/
+├── src/                                              # 共通ライブラリ（パッケージ）
+│   ├── __init__.py
+│   ├── gpu_kernels.py       # CUDA デバイス関数・カーネル（ノートブックから抽出）
+│   ├── seed_modes.py        # 初期条件生成（phi, temp, grain_map）
+│   ├── orientation_utils.py # 四元数・{111}法線の計算
+│   └── plot_utils.py        # PNG 保存ユーティリティ（Agg バックエンド）
+│
+├── run_singlemode.py    # 検証用：単結晶固液界面成長（number_of_grain=2）
+├── run_twomode.py       # 検証用：2粒競合成長・粒界形成（number_of_grain=3）
+├── run_randommode.py    # 本番用：Voronoi ランダム多結晶（number_of_grain=n_solid+1）
+├── run_imagemode.py     # 本番用：画像由来粒構造（number_of_grain=色数+1）
+├── validate_modes.py    # CPU のみで初期条件・数値健全性を検証
+│
+├── config.yaml          # 全モード共通パラメータ
+├── requirement.txt      # Python依存ライブラリ
+│
+├── GPU-multi-phase-field-model-solification_2d.ipynb  # 元ノートブック（参照用）
+│
+└── result/              # 出力（自動生成）
+    ├── singlemode/      # run_singlemode.py の出力
+    ├── twomode/         # run_twomode.py の出力
+    ├── randommode/      # run_randommode.py の出力
+    └── imagemode/       # run_imagemode.py の出力
 ```
 
 ### モジュールの役割
 
 | ファイル | 提供する関数 |
 |---|---|
-| `gpu_kernels.py` | `kernel_update_nfmf`, `kernel_update_phasefield_active`, `kernel_update_temp` および全デバイス関数 |
-| `seed_modes.py` | `init_singlemode_phi`, `init_twomode_phi`, `generate_random_grain_map`, `load_grain_map_from_image`, `init_phi_from_grain_map`, `init_temperature_field`, `build_interaction_matrices` |
-| `orientation_utils.py` | `build_quaternion_from_config`, `rgb_to_unit_quaternion`, `load_quaternions_from_csv`, `assign_quaternions_to_grains`, `compute_rotated_n111` |
-| `plot_utils.py` | `save_phase_map`, `save_temperature_map` |
+| `src/gpu_kernels.py` | `kernel_update_nfmf`, `kernel_update_phasefield_active`, `kernel_update_temp` および全デバイス関数 |
+| `src/seed_modes.py` | `init_singlemode_phi`, `init_twomode_phi`, `generate_random_grain_map`, `load_grain_map_from_image`, `init_phi_from_grain_map`, `init_temperature_field`, `build_interaction_matrices` |
+| `src/orientation_utils.py` | `build_quaternion_from_config`, `rgb_to_unit_quaternion`, `load_quaternions_from_csv`, `assign_quaternions_to_grains`, `compute_rotated_n111` |
+| `src/plot_utils.py` | `save_phase_map`, `save_temperature_map` |
 
 ### ノートブックのセル構成（参照用）
 
