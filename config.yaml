@@ -13,14 +13,14 @@ grid:
 physical:
   T_melt: 1687          # Melting temperature [K]
   G: 1.0e+2             # Temperature gradient [K/m]
-  V_pulling: 1.0e-2     # Pulling velocity [m/s]
-  Sf: 2.12e+4           # Entropy of fusion [J/(m³·K)]
+  V_pulling: 5.0e-2     # Pulling velocity [m/s]
+  Sf: 2.12e+4           # Entropy of fusion [J/(m3*K)]
 
 interface:
 
   delta_factor: 6.0     # Interface thickness = delta_factor * dx
-  gamma_100: 0.44       # Solid-liquid base energy (100 baseline) [J/m²]
-  gamma_GB: 0.60        # Grain boundary energy (isotropic) [J/m²]
+  gamma_100: 0.44       # Solid-liquid base energy (100 baseline) [J/m2]
+  gamma_GB: 0.60        # Grain boundary energy (isotropic) [J/m2]
 
 anisotropy:
   a0_deg: 54.7          # Reference angle [degrees]
@@ -31,8 +31,8 @@ anisotropy:
   omg_deg: 10.0         # Angular parameter [degrees^-1]
 
 mobility:
-  M_SL: 5.0e-5          # Solid-liquid mobility [m/(Pa·s)]
-  M_GB_ratio: 0.1      # M_GB = M_SL * M_GB_ratio important 
+  M_SL: 5.0e-5          # Solid-liquid mobility [m/(Pa*s)]
+  M_GB_ratio: 0.1      # M_GB = M_SL * M_GB_ratio important
 
 gpu:
   MAX_GRAINS: 20        # Max phases in kernel (fixed buffer size)
@@ -52,3 +52,50 @@ seed:
 output:
   dir_template: "result/new/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
   save_every: 200
+
+# ---------------------------------------------------------------
+# Validation modes (used by run_singlemode.py / run_twomode.py)
+# ---------------------------------------------------------------
+
+singlemode:
+  seed_height: 32              # Initial solid front height [grid points]
+  orientation_type: "euler"    # "euler" or "quaternion"
+  euler_deg: [0.0, 0.0, 0.0]  # Euler angles [deg], rotation order "xyz"
+  # quaternion: [0.0, 0.0, 0.0, 1.0]   # Alternative: direct (x,y,z,w)
+
+twomode:
+  seed_height: 32              # Base solid front height [grid points]
+  split_ratio: 0.5             # Grain1 / Grain2 split (fraction of nx)
+  grain1_seed_offset: 0        # Extra height for grain 1 front [grid pts]
+  grain2_seed_offset: 0        # Extra height for grain 2 front [grid pts]
+
+  grain1:
+    orientation_type: "euler"
+    euler_deg: [0.0, 45.0, 0.0]
+
+  grain2:
+    orientation_type: "euler"
+    euler_deg: [0.0, 0.0, 0.0]
+
+# ---------------------------------------------------------------
+# randommode (used by run_randommode.py)
+# ---------------------------------------------------------------
+
+randommode:
+  seed_height: 32              # Initial solid front height [grid points]
+  n_solid: 10                  # Number of solid grains (number_of_grain = n_solid + 1)
+  random_seed: 42              # Voronoi seed-point placement RNG seed
+  orientation_mode: "random"   # "random" or "file"
+  orientation_seed: 42         # RNG seed for quaternion generation (mode=random)
+  orientation_csv: ""          # Path to CSV (used if orientation_mode = "file")
+
+# ---------------------------------------------------------------
+# imagemode (used by run_imagemode.py)
+# ---------------------------------------------------------------
+
+imagemode:
+  seed_height: 32              # Initial solid front height [grid points]
+  image_path: "D:/hatanaka/phasefield/generated/seed0064_encode_XZ_111.bmp"               # Path to grain-map image (BMP, PNG, TIFF, ...)
+  orientation_mode: "rgb"   # "random", "file", or "rgb"
+  orientation_seed: 42         # RNG seed (used if orientation_mode = "random")
+  orientation_csv: ""          # Path to CSV (used if orientation_mode = "file")
