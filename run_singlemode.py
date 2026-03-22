@@ -56,7 +56,7 @@ from seed_modes import (
     init_temperature_field,
     build_interaction_matrices,
 )
-from plot_utils import save_phase_map, save_temperature_map
+from plot_utils import save_phase_map, save_temperature_map, save_run_config
 
 
 # ─── Configuration ────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ delta_a = cfg["anisotropy"]["delta_a"]
 mu_a    = cfg["anisotropy"]["mu_a"]
 p_round = cfg["anisotropy"]["p_round"]
 ksi     = cfg["anisotropy"]["ksi"]
-omg     = 1.0 / (cfg["anisotropy"]["omg_deg"] * pi / 180.0)
+theta_c_rad = cfg["anisotropy"]["omg_deg"] * pi / 180.0
 
 # Mobility
 M_SL = cfg["mobility"]["M_SL"]
@@ -190,6 +190,14 @@ save_temperature_map(temp_cpu, out_dir, "initial_temperature.png",
                      title="Initial Temperature [K]")
 print("Saved step_0.png, initial_phase_map.png, initial_temperature.png")
 
+save_run_config(out_dir, cfg, {
+    "mode": "singlemode",
+    "number_of_grain": number_of_grain,
+    "seed_height": seed_height,
+    "grain_quaternions": grain_quaternions.tolist(),
+    "out_dir": out_dir,
+})
+
 
 # ─── GPU transfer ─────────────────────────────────────────────────────────────
 
@@ -235,7 +243,7 @@ for nstep in range(1, nsteps + 1):
         T_melt_f, Sf_f,
         np.float32(eps0_sl), np.float32(w0_sl),
         np.float32(a0), np.float32(delta_a), np.float32(mu_a), np.float32(p_round),
-        g2_floor_f, np.float32(ksi), np.float32(omg),
+        g2_floor_f, np.float32(ksi), np.float32(theta_c_rad),
     )
 
     d_phi, d_phi_new = d_phi_new, d_phi
