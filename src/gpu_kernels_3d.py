@@ -17,7 +17,7 @@ import math
 from numba import cuda, float32
 
 # Compile-time constants captured by CUDA at first JIT compile.
-KMAX = 18
+KMAX = 50
 LIQ = 0
 
 
@@ -441,6 +441,24 @@ def torque_A11_3d(phi, l, m, k, nx, ny, nz, dx, solidid, eps0_sl,
     return (eps0_sl * eps0_sl) * (Ex + Ey + Ez)
 
 
+@cuda.jit(device=True, inline=True)
+def laplacian_3d(phi, gid, l, m, k, nx, ny, nz, inv_dx2):
+    """6-neighbour Laplacian at (l,m,k)."""
+    lp = idx_xp(l, nx)
+    lm = idx_xm(l, nx)
+    mp = idx_yp(m, ny)
+    mm = idx_ym(m, ny)
+    kp = idx_zp(k, nz)
+    km = idx_zm(k, nz)
+
+    return (
+        phi[gid, lp, m, k] + phi[gid, lm, m, k]
+        + phi[gid, l, mp, k] + phi[gid, l, mm, k]
+        + phi[gid, l, m, kp] + phi[gid, l, m, km]
+        - 6.0 * phi[gid, l, m, k]
+    ) * inv_dx2
+
+
 @cuda.jit
 def kernel_update_nfmf_3d(phi, mf, nf, nx, ny, nz, number_of_grain):
     """Update active phase list (APT) per cell in 3D."""
@@ -466,6 +484,47 @@ def kernel_update_nfmf_3d(phi, mf, nf, nx, ny, nz, number_of_grain):
             mf[n - 1, l, m, k] = i
 
     nf[l, m, k] = n
+
+
+@cuda.jit
+def kernel_update_nfmf_3d_checked(phi, mf, nf, status, nx, ny, nz, number_of_grain):
+    """Checked APT update that clamps writes and reports KMAX overflow.
+
+    Parameters
+    ----------
+    status : int32[2]
+        status[0] = 1 if any cell needs more than KMAX active phases
+        status[1] = maximum active-phase count observed over the whole grid
+    """
+    l, m, k = cuda.grid(3)
+    if l >= nx or m >= ny or k >= nz:
+        return
+
+    lp = idx_xp(l, nx)
+    lm = idx_xm(l, nx)
+    mp = idx_yp(m, ny)
+    mm = idx_ym(m, ny)
+    kp = idx_zp(k, nz)
+    km = idx_zm(k, nz)
+
+    n = 0
+    for i in range(number_of_grain):
+        if (phi[i, l, m, k] > 0.0) or ((phi[i, l, m, k] == 0.0) and (
+            (phi[i, lp, m, k] > 0.0) or (phi[i, lm, m, k] > 0.0) or
+            (phi[i, l, mp, k] > 0.0) or (phi[i, l, mm, k] > 0.0) or
+            (phi[i, l, m, kp] > 0.0) or (phi[i, l, m, km] > 0.0)
+        )):
+            n += 1
+            if n <= KMAX:
+                mf[n - 1, l, m, k] = i
+
+    if n > KMAX:
+        cuda.atomic.max(status, 0, 1)
+        nf[l, m, k] = KMAX
+    else:
+        nf[l, m, k] = n
+
+    cuda.atomic.max(status, 1, n)
 
 
 @cuda.jit
@@ -564,6 +623,156 @@ def kernel_update_phasefield_active_3d(phi, phi_new, temp, mf, nf,
                     + phi[phase_k, l, m, kp] + phi[phase_k, l, m, km]
                     - 6.0 * phi_k
                 ) * inv_dx2
+
+                wik = wij[i, phase_k]
+                wjk = wij[j, phase_k]
+                if phase_k == LIQ:
+                    if i != LIQ:
+                        wik = w_sl
+                    if j != LIQ:
+                        wjk = w_sl
+                term1 = (wik - wjk) * phi_k
+
+                term2 = 0.0
+                if j == LIQ and i != LIQ:
+                    if phase_k == i:
+                        term2 = 0.5 * lap_sl[t1]
+                elif i == LIQ and j != LIQ:
+                    if phase_k == j:
+                        term2 = -0.5 * lap_sl[t2]
+                else:
+                    eps2ik = aij[i, phase_k] * aij[i, phase_k]
+                    eps2jk = aij[j, phase_k] * aij[j, phase_k]
+                    term2 = 0.5 * (eps2ik - eps2jk) * lap_k
+
+                ppp += term1 + term2
+
+            phii_phij = phi[i, l, m, k] * phi[j, l, m, k]
+            term_force = (8.0 / 3.1415926535) * math.sqrt(max(phii_phij, 0.0)) * driving_force
+
+            mij_eff = mij[i, j]
+            if i != LIQ and j == LIQ:
+                mij_eff = mij[i, j] * b_sl[t1]
+            elif i == LIQ and j != LIQ:
+                mij_eff = mij[i, j] * b_sl[t2]
+
+            dpi -= 2.0 * mij_eff / float(n_act) * (ppp - term_force)
+
+        phi_new[i, l, m, k] = phi[i, l, m, k] + dt * dpi
+
+    s = 0.0
+    for t in range(n_act):
+        i = mf[t, l, m, k]
+        v = phi_new[i, l, m, k]
+        if v < 0.0:
+            v = 0.0
+        if v > 1.0:
+            v = 1.0
+        phi_new[i, l, m, k] = v
+        s += v
+
+    if s > 1e-20:
+        invs = 1.0 / s
+        for t in range(n_act):
+            i = mf[t, l, m, k]
+            phi_new[i, l, m, k] *= invs
+    else:
+        phi_new[LIQ, l, m, k] = 1.0
+
+
+@cuda.jit
+def kernel_update_phasefield_active_3d_switchable(
+    phi, phi_new, temp, mf, nf,
+    wij, aij, mij, n111,
+    nx, ny, nz, number_of_grain,
+    dx, dt, T_melt, Sf,
+    eps0_sl, w0_sl,
+    a0, delta_a, mu_a, p_round,
+    g2_floor, ksi, theta_c_rad,
+    enable_anisotropy, enable_torque,
+):
+    """3D phase-field update kernel with runtime toggles for verification."""
+    l, m, k = cuda.grid(3)
+    if l >= nx or m >= ny or k >= nz:
+        return
+
+    inv_dx2 = 1.0 / (dx * dx)
+    Tcur = temp[l, m, k]
+    n_act = nf[l, m, k]
+
+    lap_sl = cuda.local.array(KMAX, float32)
+    b_sl = cuda.local.array(KMAX, float32)
+
+    gx_liq, gy_liq, gz_liq = grad_phi_xyz(phi, LIQ, l, m, k, nx, ny, nz, dx)
+    lap_liq = laplacian_3d(phi, LIQ, l, m, k, nx, ny, nz, inv_dx2)
+
+    for t in range(n_act):
+        gid = mf[t, l, m, k]
+        if gid == LIQ:
+            b_sl[t] = 1.0
+            lap_sl[t] = 0.0
+        else:
+            if enable_anisotropy != 0:
+                lap_val = aniso_term1_solid_3d(
+                    phi, l, m, k, nx, ny, nz, dx, gid, eps0_sl,
+                    a0, delta_a, mu_a, p_round, n111, g2_floor,
+                )
+                if enable_torque != 0:
+                    lap_val += torque_A11_3d(
+                        phi, l, m, k, nx, ny, nz, dx, gid, eps0_sl,
+                        a0, delta_a, mu_a, p_round, n111, g2_floor,
+                    )
+                best_cos = best_cos_from_grad_3d(
+                    gx_liq, gy_liq, gz_liq, n111, gid, g2_floor
+                )
+                b_sl[t] = calc_b_from_cos(best_cos, ksi, theta_c_rad)
+            else:
+                lap_val = (eps0_sl * eps0_sl) * lap_liq
+                b_sl[t] = 1.0
+
+            lap_sl[t] = lap_val
+
+    i_s = -1
+    maxv = -1.0
+    for t in range(n_act):
+        gid = mf[t, l, m, k]
+        if gid == LIQ:
+            continue
+        v = phi[gid, l, m, k]
+        if v > maxv:
+            maxv = v
+            i_s = gid
+
+    w_sl = w0_sl
+    if enable_anisotropy != 0 and i_s != -1:
+        phix_s, phiy_s, phiz_s = grad_phi_xyz(phi, i_s, l, m, k, nx, ny, nz, dx)
+        cmax = best_cos_from_grad_3d(phix_s, phiy_s, phiz_s, n111, i_s, g2_floor)
+        a_loc = calc_a_from_cos(cmax, a0, delta_a, mu_a, p_round)
+        w_sl = w0_sl * (a_loc * a_loc)
+
+    for phase_id in range(number_of_grain):
+        phi_new[phase_id, l, m, k] = 0.0
+
+    for t1 in range(n_act):
+        i = mf[t1, l, m, k]
+        dpi = 0.0
+
+        for t2 in range(n_act):
+            j = mf[t2, l, m, k]
+            if i == j:
+                continue
+
+            driving_force = 0.0
+            if i != LIQ and j == LIQ:
+                driving_force = -Sf * (Tcur - T_melt)
+            elif i == LIQ and j != LIQ:
+                driving_force = Sf * (Tcur - T_melt)
+
+            ppp = 0.0
+            for t3 in range(n_act):
+                phase_k = mf[t3, l, m, k]
+                phi_k = phi[phase_k, l, m, k]
+                lap_k = laplacian_3d(phi, phase_k, l, m, k, nx, ny, nz, inv_dx2)
 
                 wik = wij[i, phase_k]
                 wjk = wij[j, phase_k]
