@@ -11,7 +11,6 @@
 ## Notes
 
 - Loaded base parameters from config_3d.yaml.
-- config_3d.yaml gpu.KMAX=18 differs from compile-time KMAX=50; verification uses compile-time KMAX.
 - gpu.MAX_GRAINS=20 is smaller than compile-time KMAX=50; verification allocates APT arrays with depth max(MAX_GRAINS, KMAX, number_of_grain).
 
 ## Main Physics
@@ -244,4 +243,4 @@
 - Summary: Convergence sanity check: grid_error=1.06e-01, dt_error=1.06e-01, delta_sensitivity=5.61e-02, interface_diffs=(3.13e-05, 0.00e+00, 0.00e+00).
 - Artifacts: `tests\output\latest\convergence_grid_dt_delta`
 - Key metrics: phi_sum_error_max=0.000e+00, solid_fraction=3.815e-01, surviving_grains=1, interface_mean=5.000e-04, interface_max=6.000e-04, winner_ratio=-, root_shift=-, interface_angle=-, front_velocity=-
-- Extra: `{"grid_error": 0.10639186203479767, "dt_error": 0.10627716034650803, "delta_sensitivity": 0.0561206117272377, "grid_interface_diff": 3.125000000000003e-05, "dt_interface_diff": 0.0, "delta_interface_diff": 0.0, "fine_runtime_s": 0.010281499940901995}`
+- Extra: `{"grid_error": 0.10639186203479767, "dt_error": 0.10627716034650803, "delta_sensitivity": 0.0561206117272377, "grid_interface_diff": 3.125000000000003e-05, "dt_interface_diff": 0.0, "delta_interface_diff": 0.0, "fine_runtime_s": 0.01169259985908866}`
