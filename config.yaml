@@ -7,7 +7,7 @@ grid:
   ny: 256
   dx: 1.0e-4
   dy: 1.0e-4
-  dt: 1.0e-4
+  dt: 5.0e-5
   nsteps: 20000
 
 physical:
@@ -21,18 +21,20 @@ interface:
   delta_factor: 6.0     # Interface thickness = delta_factor * dx
   gamma_100: 0.44       # Solid-liquid base energy (100 baseline) [J/m2]
   gamma_GB: 0.60        # Grain boundary energy (isotropic) [J/m2]
+  # gamma_GB: 0.60        # Grain boundary energy (isotropic) [J/m2]
+
 
 anisotropy:
   a0_deg: 54.7          # Reference angle [degrees]
   delta_a: 0.36         # Anisotropy strength
   mu_a: 0.6156          # Anisotropy prefactor
   p_round: 0.05         # Corner rounding parameter
-  ksi: 0.30             # Kinetic anisotropy parameter
+  ksi: 0.60             # Kinetic anisotropy parameter
   omg_deg: 10.0         # Angular parameter [degrees^-1]
 
 mobility:
   M_SL: 5.0e-5          # Solid-liquid mobility [m/(Pa*s)]
-  M_GB_ratio: 0.07      # M_GB = M_SL * M_GB_ratio important
+  M_GB_ratio: 0.07   # M_GB = M_SL * M_GB_ratio important
 
 gpu:
   MAX_GRAINS: 20        # Max phases in kernel (fixed buffer size)
@@ -51,7 +53,7 @@ seed:
 
 output:
   dir_template: "result/new/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
-  save_every: 200
+  save_every: 500
 
 # ---------------------------------------------------------------
 # Validation modes (used by run_singlemode.py / run_twomode.py)
