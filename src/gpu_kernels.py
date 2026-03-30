@@ -16,7 +16,7 @@ import math
 from numba import cuda, float32, int32
 
 # ─── Compile-time constants (captured at first kernel JIT compile) ────────────
-KMAX = 18   # Must match config gpu.KMAX
+KMAX = 50   # Must match config gpu.KMAX
 LIQ  = 0    # Liquid phase index
 
 
