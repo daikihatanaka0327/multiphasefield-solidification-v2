@@ -142,7 +142,6 @@ def main():
     config_kmax = int(cfg_runtime["gpu"]["KMAX"])
     threadsperblock = tuple(int(v) for v in cfg_runtime["gpu"]["threads_per_block"])
 
-    out_dir = cfg_runtime["output"]["outdir"] + f"/{V_pulling*G:.1f}K"
     save_every = int(cfg_runtime["output"]["save_every"])
     save_slices = list(cfg_runtime["output"].get("save_slices", ["xy", "xz"]))
     slice_index = cfg_runtime["output"].get("slice_index")
@@ -154,6 +153,8 @@ def main():
     orientation_mode = str(rm_cfg.get("orientation_mode", "random"))
     orientation_seed = int(rm_cfg.get("orientation_seed", 42))
     orientation_csv = rm_cfg.get("orientation_csv", None) or None
+
+    out_dir = cfg_runtime["output"]["outdir"] + f"/{n_solid} grains/{V_pulling*G:.1f}K"
 
     if (dx != dy) or (dx != dz):
         raise ValueError("3D kernels assume dx == dy == dz.")
