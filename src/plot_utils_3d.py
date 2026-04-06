@@ -66,7 +66,9 @@ def save_phase_map_slice_3d(phi: np.ndarray, out_dir: str, filename: str,
     ax.set_title(title or f"{axis} slice @ {idx}", fontsize=24)
     ax.axis("off")
     plt.tight_layout()
-    plt.savefig(os.path.join(out_dir, filename), dpi=dpi)
+    out_dir_3dphase = os.path.join(out_dir+"/3dphase", "3dphase")
+    os.makedirs(out_dir_3dphase, exist_ok=True)
+    plt.savefig(os.path.join(out_dir_3dphase, filename), dpi=dpi)
     plt.close(fig)
 
 
@@ -88,5 +90,7 @@ def save_interface_position_3d(phi: np.ndarray, out_dir: str, filename: str,
     ax.set_title(title or "Interface z position")
     ax.axis("off")
     plt.tight_layout()
-    plt.savefig(os.path.join(out_dir, filename), dpi=dpi)
+    out_dir_interface = os.path.join(out_dir+"/interface", "interface")
+    os.makedirs(out_dir_interface, exist_ok=True)
+    plt.savefig(os.path.join(out_dir_interface, filename), dpi=dpi)
     plt.close(fig)
