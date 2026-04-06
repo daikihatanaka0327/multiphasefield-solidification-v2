@@ -208,7 +208,7 @@ def main():
     print(f"Grid             : {nx}x{ny}x{nz}, dx={dx:.1e}, dt={dt:.1e}, nsteps={nsteps}")
     print(f"Threads/block    : {threadsperblock}")
     print(f"Seed height      : {seed_height}")
-    print(f"n_solid          : {n_solid}  (number_of_grain={number_of_grain})")
+    print(f"n_solid          : {n_solid}  (number_of_phases={number_of_grain})")
     print(f"Orientation mode : {orientation_mode}  (seed={orientation_seed})")
     print(f"Save slices      : {save_slices}, slice_index={slice_index}")
     print(f"Output dir       : {out_dir}")
