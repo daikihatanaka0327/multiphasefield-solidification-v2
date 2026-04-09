@@ -124,7 +124,7 @@ split_ratio        = float(tm_cfg.get("split_ratio", 0.5))
 split_index        = int(nx * split_ratio)
 grain1_seed_offset = int(tm_cfg.get("grain1_seed_offset", 0))
 grain2_seed_offset = int(tm_cfg.get("grain2_seed_offset", 0))
-out_dir            = "result/twomode"
+out_dir            = f"result/twomode/{V_pulling*G}"
 os.makedirs(out_dir, exist_ok=True)
 
 

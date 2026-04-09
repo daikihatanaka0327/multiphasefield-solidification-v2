@@ -8,12 +8,12 @@ grid:
   dx: 1.0e-4
   dy: 1.0e-4
   dt: 5.0e-5
-  nsteps: 20000
+  nsteps: 4000
 
 physical:
   T_melt: 1687          # Melting temperature [K]
   G: 1.0e+2             # Temperature gradient [K/m]
-  V_pulling: 5.0e-2     # Pulling velocity [m/s]
+  V_pulling: 1.5e-1     # Pulling velocity [m/s]
   Sf: 2.12e+4           # Entropy of fusion [J/(m3*K)]
 
 interface:
@@ -52,8 +52,8 @@ seed:
   height: 32                # Initial solid seed height [grid points]
 
 output:
-  dir_template: "result/new/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
-  save_every: 500
+  dir_template: "result/twomode/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
+  save_every: 25
 
 # ---------------------------------------------------------------
 # Validation modes (used by run_singlemode.py / run_twomode.py)
@@ -73,11 +73,11 @@ twomode:
 
   grain1:
     orientation_type: "euler"
-    euler_deg: [0.0, 0.0, 0.0]
+    euler_deg: [0.0, 0.0, 0.0]   # <100> grain
 
   grain2:
     orientation_type: "euler"
-    euler_deg: [0.0, 45.0, 0.0]
+    euler_deg: [0.0, 45.0, 0.0]   # <110> grain
 
 # ---------------------------------------------------------------
 # randommode (used by run_randommode.py)
