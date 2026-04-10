@@ -47,7 +47,7 @@ Config additions (config.yaml → twomode block)
 
     grain2:
       orientation_type: "euler"
-      euler_deg: [0.0, 45.0, 0.0]
+      euler_deg: [0.0, 20.0, 0.0]
 """
 
 import os
@@ -56,23 +56,29 @@ import numpy as np
 import yaml
 from numba import cuda
 
-from src.gpu_kernels import (
-    kernel_update_nfmf,
-    kernel_update_phasefield_active,
-    kernel_update_temp,
+from src.gpu_kernels_3d import (
+    kernel_update_nfmf_3d,
+    kernel_update_phasefield_active_3d,
+    kernel_update_temp_3d,
 )
 from src.orientation_utils import build_quaternion_from_config, compute_rotated_n111
-from src.seed_modes import (
-    init_twomode_phi,
-    init_temperature_field,
-    build_interaction_matrices,
+
+from src.plot_utils_3d import (
+    save_phase_map_slice_3d,
+    save_interface_position_3d,
+    save_run_config,
 )
-from src.plot_utils import save_phase_map, save_temperature_map, save_run_config
+
+from src.seed_modes_3d import (
+    init_twomode_phi_3d,  # 3D version of init_twomode_phi
+    init_temperature_field_3d,
+    build_interaction_matrices
+)
 
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-CONFIG_PATH = "config.yaml"
+CONFIG_PATH = "config_3d.yaml"
 with open(CONFIG_PATH, "r") as f:
     cfg = yaml.safe_load(f)
 
@@ -81,8 +87,10 @@ pi = math.pi
 # Grid
 nx     = cfg["grid"]["nx"]
 ny     = cfg["grid"]["ny"]
+nz     = cfg["grid"]["nz"]
 dx     = cfg["grid"]["dx"]
 dy     = cfg["grid"]["dy"]
+dz     = cfg["grid"]["dz"]
 dt     = cfg["grid"]["dt"]
 nsteps = cfg["grid"]["nsteps"]
 
@@ -115,16 +123,18 @@ threadsperblock = tuple(cfg["gpu"]["threads_per_block"])
 LIQ             = 0
 
 # Output
-save_every = cfg["output"]["save_every"]
+save_every  = cfg["output"]["save_every"]
+save_slices = list(cfg["output"].get("save_slices", ["xy", "xz"]))
+slice_index = cfg["output"].get("slice_index")
 
 # twomode-specific settings
 tm_cfg = cfg.get("twomode", {})
-seed_height        = int(tm_cfg.get("seed_height", cfg["seed"].get("height", 32)))
+seed_height        = int(tm_cfg.get("seed_height", 32))
 split_ratio        = float(tm_cfg.get("split_ratio", 0.5))
 split_index        = int(nx * split_ratio)
 grain1_seed_offset = int(tm_cfg.get("grain1_seed_offset", 0))
 grain2_seed_offset = int(tm_cfg.get("grain2_seed_offset", 0))
-out_dir            = f"result/twomode_2/{V_pulling*G}"
+out_dir            = f"result/twomode_3d/{V_pulling*G}"
 os.makedirs(out_dir, exist_ok=True)
 
 
@@ -181,22 +191,22 @@ wij, aij, mij = build_interaction_matrices(
 
 # ─── APT arrays ───────────────────────────────────────────────────────────────
 
-mf_cpu = np.zeros((MAX_GRAINS, nx, ny), dtype=np.int32)
-nf_cpu = np.zeros((nx, ny), dtype=np.int32)
+mf_cpu = np.zeros((MAX_GRAINS, nx, ny, nz), dtype=np.int32)
+nf_cpu = np.zeros((nx, ny, nz), dtype=np.int32)
 
 
 # ─── Initial conditions ───────────────────────────────────────────────────────
 
-phi_cpu  = init_twomode_phi(
-    nx, ny, dy, delta, seed_height, split_index,
+phi_cpu  = init_twomode_phi_3d(
+    nx, ny, nz, dz, delta, seed_height, split_index,
     grain1_seed_offset, grain2_seed_offset)
-temp_cpu = init_temperature_field(nx, ny, T_melt, G, dy, seed_height)
+temp_cpu = init_temperature_field_3d(nx, ny, nz, T_melt, G, dz, seed_height)
 
 
 # ─── Startup log ─────────────────────────────────────────────────────────────
 
 print("Mode        : twomode")
-print(f"Grid        : {nx}x{ny}, dx={dx:.1e}, dt={dt:.1e}, nsteps={nsteps}")
+print(f"Grid        : {nx}x{ny}x{nz}, dx={dx:.1e}, dt={dt:.1e}, nsteps={nsteps}")
 print(f"Seed height : {seed_height}  (split_index={split_index}, "
       f"split_ratio={split_ratio:.2f})")
 print(f"Phases      : {number_of_grain}")
@@ -205,14 +215,34 @@ print(grain_quaternions)
 print(f"Output dir  : {out_dir}")
 
 
+# ─── Save helper ─────────────────────────────────────────────────────────────
+
+def save_requested_slices(phi, out_dir, number_of_grain, save_slices, slice_index, prefix, title_suffix):
+    for axis in save_slices:
+        save_phase_map_slice_3d(
+            phi,
+            out_dir,
+            f"{prefix}_{axis}.png",
+            number_of_grain,
+            axis=axis,
+            index=slice_index,
+            title=f"{title_suffix} ({axis})",
+        )
+    save_interface_position_3d(
+        phi,
+        out_dir,
+        f"{prefix}_interface.png",
+        title=f"Interface z position -- {title_suffix}",
+    )
+
+
 # ─── Save initial state ───────────────────────────────────────────────────────
 
-save_phase_map(phi_cpu, out_dir, "step_0.png",
-               number_of_grain, title="twomode — step 0")
-save_phase_map(phi_cpu, out_dir, "initial_phase_map.png",
-               number_of_grain, title="twomode — Initial Phase Map")
-save_temperature_map(temp_cpu, out_dir, "initial_temperature.png",
-                     title="Initial Temperature [K]")
+save_requested_slices(
+    phi_cpu, out_dir, number_of_grain, save_slices, slice_index,
+    prefix="step_0",
+    title_suffix="twomode3d -- step 0",
+)
 print("Saved step_0.png, initial_phase_map.png, initial_temperature.png")
 
 save_run_config(out_dir, cfg, {
@@ -244,7 +274,8 @@ d_mij     = cuda.to_device(mij.astype(np.float32))
 d_n111    = cuda.to_device(grain_n111.astype(np.float32))
 
 blockspergrid = (math.ceil(nx / threadsperblock[0]),
-                 math.ceil(ny / threadsperblock[1]))
+                 math.ceil(ny / threadsperblock[1]),
+                 math.ceil(nz / threadsperblock[2]))
 
 cooling_rate = np.float32(G * V_pulling * dt)
 T_melt_f     = np.float32(T_melt)
@@ -258,16 +289,16 @@ print(f"\nStarting time evolution ({nsteps} steps, saving every {save_every}) ..
 
 for nstep in range(1, nsteps + 1):
 
-    kernel_update_temp[blockspergrid, threadsperblock](
-        d_temp, cooling_rate, nx, ny)
+    kernel_update_temp_3d[blockspergrid, threadsperblock](
+        d_temp, cooling_rate, nx, ny, nz)
 
-    kernel_update_nfmf[blockspergrid, threadsperblock](
-        d_phi, d_mf, d_nf, nx, ny, number_of_grain)
+    kernel_update_nfmf_3d[blockspergrid, threadsperblock](
+        d_phi, d_mf, d_nf, nx, ny, nz, number_of_grain)
 
-    kernel_update_phasefield_active[blockspergrid, threadsperblock](
+    kernel_update_phasefield_active_3d[blockspergrid, threadsperblock](
         d_phi, d_phi_new, d_temp, d_mf, d_nf,
         d_wij, d_aij, d_mij, d_n111,
-        nx, ny, number_of_grain,
+        nx, ny, nz, number_of_grain,
         np.float32(dx), np.float32(dt),
         T_melt_f, Sf_f,
         np.float32(eps0_sl), np.float32(w0_sl),
@@ -279,8 +310,15 @@ for nstep in range(1, nsteps + 1):
 
     if nstep % save_every == 0:
         current_phi = d_phi.copy_to_host()
-        save_phase_map(current_phi, out_dir, f"step_{nstep}.png",
-                       number_of_grain, title=f"twomode — step {nstep}")
-        print(f"  saved step_{nstep}.png")
+        save_requested_slices(
+            current_phi,
+            out_dir,
+            number_of_grain,
+            save_slices,
+            slice_index,
+            prefix=f"step_{nstep}",
+            title_suffix=f"twomode3d -- step {nstep}",
+        )
+        print(f"  saved step_{nstep}")
 
 print("\nDone.")

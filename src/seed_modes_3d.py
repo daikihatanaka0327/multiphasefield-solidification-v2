@@ -55,3 +55,54 @@ def init_phi_from_grain_map_3d(grain_map: np.ndarray, n_solid: int,
 
     phi[0] = np.clip(1.0 - phi[1:].sum(axis=0), 0.0, 1.0)
     return phi
+
+def init_twomode_phi_3d(nx: int, ny: int, nz: int, dz: float, delta: float,
+                      seed_height: int, split_index: int,
+                      grain1_seed_offset: int = 0,
+                      grain2_seed_offset: int = 0) -> np.ndarray:
+    """Generate the initial phase field for twomode (left grain + right grain + liquid).
+
+    Grain layout:
+      l < split_index  → grain 1 (gid = 1)
+      l >= split_index → grain 2 (gid = 2)
+      m > seed_height  → liquid  (gid = 0)
+
+    A sharp grain boundary forms at x = split_index; the phase field
+    solver will relax it to a diffuse profile during time evolution.
+
+    Parameters
+    ----------
+    nx, ny, nz          : grid dimensions
+    dz                  : grid spacing in z (pulling direction) [m]
+    delta               : interface thickness parameter [m]
+    seed_height         : base solid height [grid points]
+    split_index         : x-column index of grain boundary (grain1 | grain2)
+    grain1_seed_offset  : vertical offset for grain 1 solid front [grid pts]
+    grain2_seed_offset  : vertical offset for grain 2 solid front [grid pts]
+
+    Returns
+    -------
+    phi : np.ndarray, shape (3, nx, ny), dtype float32
+        phi[0] = liquid, phi[1] = grain 1, phi[2] = grain 2
+    """
+    phi    = np.zeros((3, nx, ny, nz), dtype=np.float32)
+    factor = np.float32(2.2 / delta)
+    k_arr  = np.arange(nz, dtype=np.float64)
+
+    # Grain 1 (left side: x < split_index), profile along z (pulling direction)
+    sh1    = seed_height + grain1_seed_offset
+    dist1  = (k_arr - sh1) * dz
+    phi_s1 = (0.5 * (1.0 - np.tanh(factor * dist1))).astype(np.float32)
+    phi[1, :split_index, :, :] = phi_s1[np.newaxis, np.newaxis, :]
+
+    # Grain 2 (right side: x >= split_index), profile along z (pulling direction)
+    sh2    = seed_height + grain2_seed_offset
+    dist2  = (k_arr - sh2) * dz
+    phi_s2 = (0.5 * (1.0 - np.tanh(factor * dist2))).astype(np.float32)
+    phi[2, split_index:, :, :] = phi_s2[np.newaxis, np.newaxis, :]
+
+    # Liquid = 1 − (grain1 + grain2), clipped to [0, 1]
+    phi[0] = 1.0 - phi[1] - phi[2]
+    np.clip(phi[0], 0.0, 1.0, out=phi[0])
+
+    return phi
