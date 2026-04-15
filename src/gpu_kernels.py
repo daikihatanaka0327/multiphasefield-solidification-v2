@@ -391,6 +391,7 @@ def kernel_update_phasefield_active(phi, phi_new, temp, mf, nf,
     # Cache anisotropic terms for each active phase
     lap_sl = cuda.local.array(KMAX, float32)
     b_sl   = cuda.local.array(KMAX, float32)
+    w_sl_arr = cuda.local.array(KMAX, float32)
     for t in range(nf[l, m]):
         gid = mf[t, l, m]
         if gid == LIQ:
@@ -407,33 +408,27 @@ def kernel_update_phasefield_active(phi, phi_new, temp, mf, nf,
             best_cos = best_cos_from_grad(gx, gy, n111, gid, g2_floor)
             b_sl[t]  = calc_b_from_cos(best_cos, ksi, theta_c_rad)
 
-    # Dominant solid grain for anisotropic w_sl
-    i_s  = 1
-    maxv = 0.0
+    # Per-solid anisotropic w_sl
     for t in range(nf[l, m]):
         gid = mf[t, l, m]
         if gid == LIQ:
-            continue
-        v = phi[gid, l, m]
-        if v > maxv:
-            maxv = v; i_s = gid
-
-    phix_ = (phi[i_s, lp, m] - phi[i_s, lm, m]) * (0.5 / dx)
-    phiy_ = (phi[i_s, l,  mp] - phi[i_s, l,  mm]) * (0.5 / dx)
-    gn2   = phix_ * phix_ + phiy_ * phiy_
-    cmax  = 0.0
-    if gn2 >= g2_floor:
-        inv_gn = 1.0 / math.sqrt(gn2)
-        nx_ = phix_ * inv_gn; ny_ = phiy_ * inv_gn
-        for tt in range(8):
-            c = abs(nx_ * n111[i_s, tt, 0] + ny_ * n111[i_s, tt, 1])
-            if c > cmax:
-                cmax = c
-        if cmax > 1.0:
-            cmax = 1.0
-
-    a_loc = calc_a_from_cos(cmax, a0, delta_a, mu_a, p_round)
-    w_sl  = w0_sl * (a_loc * a_loc)
+            w_sl_arr[t] = w0_sl
+        else:
+            phix_ = (phi[gid, lp, m] - phi[gid, lm, m]) * (0.5 / dx)
+            phiy_ = (phi[gid, l,  mp] - phi[gid, l,  mm]) * (0.5 / dx)
+            gn2   = phix_ * phix_ + phiy_ * phiy_
+            cmax  = 0.0
+            if gn2 >= g2_floor:
+                inv_gn = 1.0 / math.sqrt(gn2)
+                nx_ = phix_ * inv_gn; ny_ = phiy_ * inv_gn
+                for tt in range(8):
+                    c = abs(nx_ * n111[gid, tt, 0] + ny_ * n111[gid, tt, 1])
+                    if c > cmax:
+                        cmax = c
+                if cmax > 1.0:
+                    cmax = 1.0
+            a_loc = calc_a_from_cos(cmax, a0, delta_a, mu_a, p_round)
+            w_sl_arr[t] = w0_sl * (a_loc * a_loc)
 
     # Zero phi_new
     for i in range(number_of_grain):
@@ -465,8 +460,8 @@ def kernel_update_phasefield_active(phi, phi_new, temp, mf, nf,
 
                 wik = wij[i, k]; wjk = wij[j, k]
                 if k == LIQ:
-                    if i != LIQ: wik = w_sl
-                    if j != LIQ: wjk = w_sl
+                    if i != LIQ: wik = w_sl_arr[t1]
+                    if j != LIQ: wjk = w_sl_arr[t2]
                 term1 = (wik - wjk) * phi[k, l, m]
 
                 term2 = 0.0
