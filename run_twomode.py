@@ -72,7 +72,13 @@ from src.plot_utils import save_phase_map, save_temperature_map, save_run_config
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-CONFIG_PATH = "config.yaml"
+# run_twomode.py の先頭付近に追加
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--config", default="config.yaml")
+args = parser.parse_args()
+CONFIG_PATH = args.config
 with open(CONFIG_PATH, "r") as f:
     cfg = yaml.safe_load(f)
 
@@ -124,7 +130,7 @@ split_ratio        = float(tm_cfg.get("split_ratio", 0.5))
 split_index        = int(nx * split_ratio)
 grain1_seed_offset = int(tm_cfg.get("grain1_seed_offset", 0))
 grain2_seed_offset = int(tm_cfg.get("grain2_seed_offset", 0))
-out_dir            = f"result/twomode_2/{V_pulling*G}"
+out_dir = tm_cfg.get("out_dir_override", f"result/twomode_2/V_pulling{V_pulling}/G{G}")
 os.makedirs(out_dir, exist_ok=True)
 
 
@@ -235,7 +241,7 @@ temp_cpu = temp_cpu.astype(np.float32)
 
 d_phi     = cuda.to_device(phi_cpu)
 d_phi_new = cuda.to_device(phi_cpu.copy())
-d_temp    = cuda.to_device(temp_cpu)
+d_temp    = cuda.to_device(temp_cpu.astype(np.float64))
 d_mf      = cuda.to_device(mf_cpu)
 d_nf      = cuda.to_device(nf_cpu)
 d_wij     = cuda.to_device(wij.astype(np.float32))

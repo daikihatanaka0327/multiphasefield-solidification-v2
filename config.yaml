@@ -3,17 +3,17 @@
 # =====================================================
 
 grid:
-  nx: 256
-  ny: 256
+  nx: 128
+  ny: 512
   dx: 1.0e-4
   dy: 1.0e-4
   dt: 5.0e-5
-  nsteps: 20000
+  nsteps: 100000
 
 physical:
   T_melt: 1687          # Melting temperature [K]
-  G: 1.0e+2             # Temperature gradient [K/m]
-  V_pulling: 8.0e-2     # Pulling velocity [m/s]
+  G: 1.0e+2            # Temperature gradient [K/m]
+  V_pulling: 1.0e-2     # Pulling velocity [m/s]
   Sf: 2.12e+4           # Entropy of fusion [J/(m3*K)]
 
 interface:
@@ -53,7 +53,7 @@ seed:
 
 output:
   dir_template: "result/twomode/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
-  save_every: 200
+  save_every: 1000
   save_slices: ["xy", "xz"]   # Slice planes to save ("xy", "xz", "yz")
   slice_index: null  
 

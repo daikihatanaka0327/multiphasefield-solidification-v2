@@ -243,7 +243,7 @@ def main():
 
     d_phi = cuda.to_device(phi_cpu.astype(np.float32))
     d_phi_new = cuda.to_device(phi_cpu.astype(np.float32).copy())
-    d_temp = cuda.to_device(temp_cpu.astype(np.float32))
+    d_temp = cuda.to_device(temp_cpu.astype(np.float64))
     d_mf = cuda.to_device(np.zeros((MAX_GRAINS, nx, ny, nz), dtype=np.int32))
     d_nf = cuda.to_device(np.zeros((nx, ny, nz), dtype=np.int32))
     d_wij = cuda.to_device(wij.astype(np.float32))
