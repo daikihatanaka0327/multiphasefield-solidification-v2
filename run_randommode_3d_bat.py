@@ -24,7 +24,7 @@ import yaml
 
 # ─── パラメータグリッド定義 ───────────────────────────────────────────────────
 
-V_VALUES = [2.0e-2, 3.5e-2, 5.0e-2, 8.0e-2, 1.0e-1]   # 引き上げ速度 [m/s]
+V_VALUES = [1.0e-2, 3.0e-2, 5.0e-2, 6.0e-2, 7.0e-2]   # 引き上げ速度 [m/s]
 
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────
@@ -69,15 +69,17 @@ def main():
     results = []
     for n, V in enumerate(V_VALUES, start=1):
         cooling = G * V
+        nsteps = max(10000, int(50000 / (V * 100)))
         out_dir = f"{base_outdir}/{n_solid} grains/{cooling:.1f}K"
-        print(f"[{n:2d}/{total}] V={V:.2e} m/s,  G*V={cooling:.1f} K/s  →  {out_dir}")
+        print(f"[{n:2d}/{total}] V={V:.2e} m/s,  G*V={cooling:.1f} K/s,  nsteps={nsteps}  →  {out_dir}")
 
         if args.dry_run:
             continue
 
-        # config をディープコピーして V_pulling を書き換え
+        # config をディープコピーして V_pulling と nsteps を書き換え
         cfg = copy.deepcopy(base_cfg)
         cfg["physical"]["V_pulling"] = float(V)
+        cfg["grid"]["nsteps"] = nsteps
 
         # 一時 config ファイルに書き出し
         with tempfile.NamedTemporaryFile(
@@ -94,15 +96,15 @@ def main():
         Path(tmp_path).unlink(missing_ok=True)
 
         status = "OK" if ret.returncode == 0 else f"FAILED (code={ret.returncode})"
-        results.append((V, cooling, status))
+        results.append((V, cooling, nsteps, status))
         print(f"    → {status}\n")
 
     if not args.dry_run:
         print("=" * 60)
         print("スイープ完了サマリー")
         print("=" * 60)
-        for V, cooling, status in results:
-            print(f"  V={V:.2e} m/s,  G*V={cooling:.1f} K/s  {status}")
+        for V, cooling, nsteps, status in results:
+            print(f"  V={V:.2e} m/s,  G*V={cooling:.1f} K/s,  nsteps={nsteps}  {status}")
 
 
 if __name__ == "__main__":
