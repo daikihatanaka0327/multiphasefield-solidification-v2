@@ -130,7 +130,7 @@ split_ratio        = float(tm_cfg.get("split_ratio", 0.5))
 split_index        = int(nx * split_ratio)
 grain1_seed_offset = int(tm_cfg.get("grain1_seed_offset", 0))
 grain2_seed_offset = int(tm_cfg.get("grain2_seed_offset", 0))
-out_dir = tm_cfg.get("out_dir_override", f"result/twomode_2/V_pulling{V_pulling}/G{G}")
+out_dir = tm_cfg.get("out_dir_override", f"result/modify_solid_liquid_interface_1/twomode_2/{V_pulling*G}")
 os.makedirs(out_dir, exist_ok=True)
 
 

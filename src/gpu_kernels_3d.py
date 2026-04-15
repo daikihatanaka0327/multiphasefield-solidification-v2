@@ -552,6 +552,7 @@ def kernel_update_phasefield_active_3d(phi, phi_new, temp, mf, nf,
 
     lap_sl = cuda.local.array(KMAX, float32)
     b_sl = cuda.local.array(KMAX, float32)
+    w_sl_arr = cuda.local.array(KMAX, float32)
 
     gx_liq, gy_liq, gz_liq = grad_phi_xyz(phi, LIQ, l, m, k, nx, ny, nz, dx)
 
@@ -576,23 +577,19 @@ def kernel_update_phasefield_active_3d(phi, phi_new, temp, mf, nf,
             )
             b_sl[t] = calc_b_from_cos(best_cos, ksi, theta_c_rad)
 
-    i_s = -1
-    maxv = -1.0
     for t in range(n_act):
         gid = mf[t, l, m, k]
         if gid == LIQ:
-            continue
-        v = phi[gid, l, m, k]
-        if v > maxv:
-            maxv = v
-            i_s = gid
-
-    w_sl = w0_sl
-    if i_s != -1:
-        phix_s, phiy_s, phiz_s = grad_phi_xyz(phi, i_s, l, m, k, nx, ny, nz, dx)
-        cmax = best_cos_from_grad_3d(phix_s, phiy_s, phiz_s, n111, i_s, g2_floor)
-        a_loc = calc_a_from_cos(cmax, a0, delta_a, mu_a, p_round)
-        w_sl = w0_sl * (a_loc * a_loc)
+            w_sl_arr[t] = w0_sl
+        else:
+            phix_s, phiy_s, phiz_s = grad_phi_xyz(
+                phi, gid, l, m, k, nx, ny, nz, dx
+            )
+            cmax = best_cos_from_grad_3d(
+                phix_s, phiy_s, phiz_s, n111, gid, g2_floor
+            )
+            a_loc = calc_a_from_cos(cmax, a0, delta_a, mu_a, p_round)
+            w_sl_arr[t] = w0_sl * (a_loc * a_loc)
 
     for phase_id in range(number_of_grain):
         phi_new[phase_id, l, m, k] = 0.0
@@ -628,9 +625,9 @@ def kernel_update_phasefield_active_3d(phi, phi_new, temp, mf, nf,
                 wjk = wij[j, phase_k]
                 if phase_k == LIQ:
                     if i != LIQ:
-                        wik = w_sl
+                        wik = w_sl_arr[t1]
                     if j != LIQ:
-                        wjk = w_sl
+                        wjk = w_sl_arr[t2]
                 term1 = (wik - wjk) * phi_k
 
                 term2 = 0.0
@@ -702,6 +699,7 @@ def kernel_update_phasefield_active_3d_switchable(
 
     lap_sl = cuda.local.array(KMAX, float32)
     b_sl = cuda.local.array(KMAX, float32)
+    w_sl_arr = cuda.local.array(KMAX, float32)
 
     gx_liq, gy_liq, gz_liq = grad_phi_xyz(phi, LIQ, l, m, k, nx, ny, nz, dx)
     lap_liq = laplacian_3d(phi, LIQ, l, m, k, nx, ny, nz, inv_dx2)
@@ -732,23 +730,22 @@ def kernel_update_phasefield_active_3d_switchable(
 
             lap_sl[t] = lap_val
 
-    i_s = -1
-    maxv = -1.0
     for t in range(n_act):
         gid = mf[t, l, m, k]
         if gid == LIQ:
-            continue
-        v = phi[gid, l, m, k]
-        if v > maxv:
-            maxv = v
-            i_s = gid
-
-    w_sl = w0_sl
-    if enable_anisotropy != 0 and i_s != -1:
-        phix_s, phiy_s, phiz_s = grad_phi_xyz(phi, i_s, l, m, k, nx, ny, nz, dx)
-        cmax = best_cos_from_grad_3d(phix_s, phiy_s, phiz_s, n111, i_s, g2_floor)
-        a_loc = calc_a_from_cos(cmax, a0, delta_a, mu_a, p_round)
-        w_sl = w0_sl * (a_loc * a_loc)
+            w_sl_arr[t] = w0_sl
+        else:
+            if enable_anisotropy != 0:
+                phix_s, phiy_s, phiz_s = grad_phi_xyz(
+                    phi, gid, l, m, k, nx, ny, nz, dx
+                )
+                cmax = best_cos_from_grad_3d(
+                    phix_s, phiy_s, phiz_s, n111, gid, g2_floor
+                )
+                a_loc = calc_a_from_cos(cmax, a0, delta_a, mu_a, p_round)
+                w_sl_arr[t] = w0_sl * (a_loc * a_loc)
+            else:
+                w_sl_arr[t] = w0_sl
 
     for phase_id in range(number_of_grain):
         phi_new[phase_id, l, m, k] = 0.0
@@ -778,9 +775,9 @@ def kernel_update_phasefield_active_3d_switchable(
                 wjk = wij[j, phase_k]
                 if phase_k == LIQ:
                     if i != LIQ:
-                        wik = w_sl
+                        wik = w_sl_arr[t1]
                     if j != LIQ:
-                        wjk = w_sl
+                        wjk = w_sl_arr[t2]
                 term1 = (wik - wjk) * phi_k
 
                 term2 = 0.0

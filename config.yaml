@@ -29,7 +29,7 @@ anisotropy:
   delta_a: 0.36         # Anisotropy strength
   mu_a: 0.6156          # Anisotropy prefactor
   p_round: 0.05         # Corner rounding parameter
-  ksi: 0.60             # Kinetic anisotropy parameter
+  ksi: 0.10             # Kinetic anisotropy parameter
   omg_deg: 10.0         # Angular parameter [degrees^-1]
 
 mobility:
@@ -52,7 +52,7 @@ seed:
   height: 32                # Initial solid seed height [grid points]
 
 output:
-  dir_template: "result/twomode/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
+  dir_template: "result/modify_solid_liquid_interface_1/twomode/{M_GB_ratio:.2f}/{cooling_rate:.1e}"
   save_every: 1000
   save_slices: ["xy", "xz"]   # Slice planes to save ("xy", "xz", "yz")
   slice_index: null  
