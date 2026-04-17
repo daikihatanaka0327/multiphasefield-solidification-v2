@@ -111,6 +111,26 @@ def init_twomode_phi(nx: int, ny: int, dy: float, delta: float,
 
     return phi
 
+def init_twomode_phi_centered(nx, ny, dy, delta, seed_height,
+                               grain1_seed_offset=0, grain2_seed_offset=0):
+    phi = np.zeros((3, nx, ny), dtype=np.float32)
+    factor = np.float32(2.2 / delta)
+    m_arr = np.arange(ny, dtype=np.float64)
+
+    q1 = nx // 4
+    q3 = 3 * nx // 4
+
+    sh1 = seed_height + grain1_seed_offset
+    phi_s1 = (0.5 * (1.0 - np.tanh(factor * (m_arr * dy - sh1 * dy)))).astype(np.float32)
+    phi[1, q1:q3, :] = phi_s1[np.newaxis, :]
+
+    sh2 = seed_height + grain2_seed_offset
+    phi_s2 = (0.5 * (1.0 - np.tanh(factor * (m_arr * dy - sh2 * dy)))).astype(np.float32)
+    phi[2, :q1, :] = phi_s2[np.newaxis, :]
+    phi[2, q3:,  :] = phi_s2[np.newaxis, :]
+
+    phi[0] = np.clip(1.0 - phi[1] - phi[2], 0.0, 1.0)
+    return phi
 
 def init_temperature_field(nx: int, ny: int, T_melt: float, G: float,
                             dy: float, seed_height: int) -> np.ndarray:
