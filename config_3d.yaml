@@ -10,7 +10,7 @@ grid:
   dy: 1.0e-4
   dz: 1.0e-4
   dt: 5.0e-5
-  nsteps: 20000
+  nsteps: 500
 
 physical:
   T_melt: 1687          # Melting temperature [K]
@@ -28,7 +28,7 @@ anisotropy:
   delta_a: 0.36         # Anisotropy strength
   mu_a: 0.6156          # Anisotropy prefactor
   p_round: 0.05         # Corner rounding parameter
-  ksi: 0.30             # Kinetic anisotropy parameter
+  ksi: 0.05             # Kinetic anisotropy parameter
   omg_deg: 10.0         # Angular parameter [degrees^-1]
 
 mobility:
@@ -42,7 +42,7 @@ gpu:
 
 output:
   outdir: "result/randommode_3d/2"
-  save_every: 500
+  save_every: 50
   save_slices: ["xy", "xz"]   # Slice planes to save ("xy", "xz", "yz")
   slice_index: null            # null = center slice
 
@@ -71,3 +71,19 @@ twomode:
   grain2:
     orientation_type: "euler"
     euler_deg: [0.0, 45.0, 0.0]   # <110> grain
+
+# ---------------------------------------------------------------
+# diagnostic_3d (used by run_diagnostic_3d.py)
+# ---------------------------------------------------------------
+
+diagnostic_3d:
+  initial_radius_cells: 10       # Initial sphere radius [grid cells]
+  center_x_frac: 0.5             # Sphere center x (fraction of domain)
+  center_y_frac: 0.5             # Sphere center y (fraction of domain)
+  center_z_frac: 0.5             # Sphere center z (fraction of domain)
+
+  undercooling_K: 1.0            # Uniform undercooling ΔT [K]
+
+  orientation_type: "euler"      # "euler" or "quaternion"
+  euler_deg: [0.0, 0.0, 0.0]     # Default: crystal axes = grid axes
+  # quaternion: [0.0, 0.0, 0.0, 1.0]

@@ -3,8 +3,8 @@
 # =====================================================
 
 grid:
-  nx: 128
-  ny: 512
+  nx: 1024
+  ny: 1024
   dx: 1.0e-4
   dy: 1.0e-4
   dt: 5.0e-5
@@ -103,3 +103,21 @@ imagemode:
   orientation_mode: "rgb"   # "random", "file", or "rgb"
   orientation_seed: 42         # RNG seed (used if orientation_mode = "random")
   orientation_csv: ""          # Path to CSV (used if orientation_mode = "file")
+
+# ---------------------------------------------------------------
+# diagnostic (used by run_diagnostic.py)
+# ---------------------------------------------------------------
+
+diagnostic:
+  # Initial disk parameters
+  initial_radius_cells: 10       # Initial disk radius [grid cells]
+  center_x_frac: 0.5             # Disk center x position (fraction of domain)
+  center_y_frac: 0.5             # Disk center y position (fraction of domain)
+
+  # Isothermal undercooling
+  undercooling_K: 4.0            # Uniform undercooling ΔT [K] (T = T_melt - ΔT everywhere)
+
+  # Single grain orientation
+  orientation_type: "euler"      # "euler" or "quaternion"
+  euler_deg: [0.0, 0.0, 0.0]     # Default: no rotation (crystal axes = grid axes)
+  # quaternion: [0.0, 0.0, 0.0, 1.0]
