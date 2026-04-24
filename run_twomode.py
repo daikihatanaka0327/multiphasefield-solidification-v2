@@ -47,7 +47,7 @@ Config additions (config.yaml → twomode block)
 
     grain2:
       orientation_type: "euler"
-      euler_deg: [0.0, 45.0, 0.0]
+      euler_deg: [0.0, 54.736, 45.0]
 """
 
 import os
@@ -167,7 +167,7 @@ N = number_of_grain
 
 # Default orientation configs if not provided in config.yaml
 _default_g1 = {"orientation_type": "euler", "euler_deg": [0.0, 0.0, 0.0]}
-_default_g2 = {"orientation_type": "euler", "euler_deg": [0.0, 45.0, 0.0]}
+_default_g2 = {"orientation_type": "euler", "euler_deg": [0.0, 54.736, 45.0]}
 
 grain_quaternions = np.zeros((N, 4), dtype=np.float64)
 grain_quaternions[0] = np.array([0.0, 0.0, 0.0, 1.0])   # liquid dummy
