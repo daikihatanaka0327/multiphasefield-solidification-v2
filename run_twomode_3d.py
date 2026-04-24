@@ -47,7 +47,7 @@ Config additions (config.yaml → twomode block)
 
     grain2:
       orientation_type: "euler"
-      euler_deg: [0.0, 20.0, 0.0]
+      euler_deg: [0.0, 54.736, 45.0]
 """
 
 import os
@@ -134,7 +134,7 @@ split_ratio        = float(tm_cfg.get("split_ratio", 0.5))
 split_index        = int(nx * split_ratio)
 grain1_seed_offset = int(tm_cfg.get("grain1_seed_offset", 0))
 grain2_seed_offset = int(tm_cfg.get("grain2_seed_offset", 0))
-out_dir            = f"result/twomode_3d/{V_pulling*G}"
+out_dir            = f"result/twomode_3d/newgrain/{V_pulling*G}"
 os.makedirs(out_dir, exist_ok=True)
 
 
@@ -171,7 +171,7 @@ N = number_of_grain
 
 # Default orientation configs if not provided in config.yaml
 _default_g1 = {"orientation_type": "euler", "euler_deg": [0.0, 0.0, 0.0]}
-_default_g2 = {"orientation_type": "euler", "euler_deg": [0.0, 45.0, 0.0]}
+_default_g2 = {"orientation_type": "euler", "euler_deg": [0.0, 54.736, 45.0]}
 
 grain_quaternions = np.zeros((N, 4), dtype=np.float64)
 grain_quaternions[0] = np.array([0.0, 0.0, 0.0, 1.0])   # liquid dummy
@@ -261,11 +261,11 @@ save_run_config(out_dir, cfg, {
 # ─── GPU transfer ─────────────────────────────────────────────────────────────
 
 phi_cpu  = phi_cpu.astype(np.float32)
-temp_cpu = temp_cpu.astype(np.float32)
+temp_cpu = temp_cpu.astype(np.float64)
 
 d_phi     = cuda.to_device(phi_cpu)
 d_phi_new = cuda.to_device(phi_cpu.copy())
-d_temp    = cuda.to_device(temp_cpu)
+d_temp    = cuda.to_device(temp_cpu.astype(np.float64))
 d_mf      = cuda.to_device(mf_cpu)
 d_nf      = cuda.to_device(nf_cpu)
 d_wij     = cuda.to_device(wij.astype(np.float32))

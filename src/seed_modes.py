@@ -132,6 +132,56 @@ def init_twomode_phi_centered(nx, ny, dy, delta, seed_height,
     phi[0] = np.clip(1.0 - phi[1] - phi[2], 0.0, 1.0)
     return phi
 
+def init_singlemode_disk_2d(nx: int, ny: int, dx: float, dy: float,
+                             delta: float, radius: float,
+                             center_x: float = None, center_y: float = None,
+                             solid_gid: int = 1) -> np.ndarray:
+    """Generate initial phase field: a disk-shaped solid grain in liquid.
+
+    Used for diagnostic tests of anisotropic growth. A single solid grain
+    is placed as a disk at (center_x, center_y) with the given radius,
+    surrounded by liquid. A tanh diffuse interface is applied around
+    the disk boundary.
+
+    Parameters
+    ----------
+    nx, ny       : grid dimensions
+    dx, dy       : grid spacing in x and y [m]
+    delta        : interface thickness parameter [m]  (= delta_factor * dx)
+    radius       : disk radius [m]
+    center_x     : disk center in x [m]. None -> domain center.
+    center_y     : disk center in y [m]. None -> domain center.
+    solid_gid    : grain ID for the solid phase (default 1)
+
+    Returns
+    -------
+    phi : np.ndarray, shape (2, nx, ny), dtype float32
+        phi[0]         = liquid phase field
+        phi[solid_gid] = solid phase field (disk)
+    """
+    phi = np.zeros((2, nx, ny), dtype=np.float32)
+    factor = np.float32(2.2 / delta)
+
+    if center_x is None:
+        center_x = nx * dx / 2.0
+    if center_y is None:
+        center_y = ny * dy / 2.0
+
+    x_arr = np.arange(nx, dtype=np.float64) * dx
+    y_arr = np.arange(ny, dtype=np.float64) * dy
+    X, Y = np.meshgrid(x_arr, y_arr, indexing='ij')
+
+    dist_from_center = np.sqrt((X - center_x) ** 2 + (Y - center_y) ** 2)
+    signed_dist = dist_from_center - radius
+
+    phi_s = (0.5 * (1.0 - np.tanh(factor * signed_dist))).astype(np.float32)
+
+    phi[solid_gid] = phi_s
+    phi[0] = 1.0 - phi_s
+
+    return phi
+
+
 def init_temperature_field(nx: int, ny: int, T_melt: float, G: float,
                             dy: float, seed_height: int) -> np.ndarray:
     """Initialise a linear temperature field.

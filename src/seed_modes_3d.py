@@ -56,6 +56,64 @@ def init_phi_from_grain_map_3d(grain_map: np.ndarray, n_solid: int,
     phi[0] = np.clip(1.0 - phi[1:].sum(axis=0), 0.0, 1.0)
     return phi
 
+def init_singlemode_sphere_3d(nx: int, ny: int, nz: int,
+                               dx: float, dy: float, dz: float,
+                               delta: float, radius: float,
+                               center_x: float = None,
+                               center_y: float = None,
+                               center_z: float = None,
+                               solid_gid: int = 1) -> np.ndarray:
+    """Generate initial 3D phase field: a sphere-shaped solid grain in liquid.
+
+    Used for diagnostic tests of anisotropic growth. A single solid grain
+    is placed as a sphere at (center_x, center_y, center_z) with the given
+    radius, surrounded by liquid. A tanh diffuse interface is applied
+    around the sphere boundary.
+
+    Parameters
+    ----------
+    nx, ny, nz              : grid dimensions
+    dx, dy, dz              : grid spacing [m]
+    delta                   : interface thickness parameter [m]  (= delta_factor * dx)
+    radius                  : sphere radius [m]
+    center_x, center_y,
+    center_z                : sphere center [m]. None -> domain center.
+    solid_gid               : grain ID for the solid phase (default 1)
+
+    Returns
+    -------
+    phi : np.ndarray, shape (2, nx, ny, nz), dtype float32
+        phi[0]         = liquid phase field
+        phi[solid_gid] = solid phase field (sphere)
+    """
+    phi = np.zeros((2, nx, ny, nz), dtype=np.float32)
+    factor = np.float32(2.2 / delta)
+
+    if center_x is None:
+        center_x = nx * dx / 2.0
+    if center_y is None:
+        center_y = ny * dy / 2.0
+    if center_z is None:
+        center_z = nz * dz / 2.0
+
+    x_arr = np.arange(nx, dtype=np.float64) * dx
+    y_arr = np.arange(ny, dtype=np.float64) * dy
+    z_arr = np.arange(nz, dtype=np.float64) * dz
+    X, Y, Z = np.meshgrid(x_arr, y_arr, z_arr, indexing='ij')
+
+    dist_from_center = np.sqrt(
+        (X - center_x) ** 2 + (Y - center_y) ** 2 + (Z - center_z) ** 2
+    )
+    signed_dist = dist_from_center - radius
+
+    phi_s = (0.5 * (1.0 - np.tanh(factor * signed_dist))).astype(np.float32)
+
+    phi[solid_gid] = phi_s
+    phi[0] = 1.0 - phi_s
+
+    return phi
+
+
 def init_twomode_phi_3d(nx: int, ny: int, nz: int, dz: float, delta: float,
                       seed_height: int, split_index: int,
                       grain1_seed_offset: int = 0,

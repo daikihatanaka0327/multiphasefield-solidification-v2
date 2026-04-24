@@ -3,9 +3,9 @@
 # =====================================================
 
 grid:
-  nx: 256
-  ny: 256
-  nz: 256
+  nx: 128
+  ny: 128
+  nz: 512
   dx: 1.0e-4
   dy: 1.0e-4
   dz: 1.0e-4
@@ -15,7 +15,7 @@ grid:
 physical:
   T_melt: 1687          # Melting temperature [K]
   G: 1.0e+2             # Temperature gradient [K/m]
-  V_pulling: 3.5e-2     # Pulling velocity [m/s]
+  V_pulling: 5.0e-2     # Pulling velocity [m/s]
   Sf: 2.12e+4           # Entropy of fusion [J/(m3*K)]
 
 interface:
@@ -28,7 +28,7 @@ anisotropy:
   delta_a: 0.36         # Anisotropy strength
   mu_a: 0.6156          # Anisotropy prefactor
   p_round: 0.05         # Corner rounding parameter
-  ksi: 0.30             # Kinetic anisotropy parameter
+  ksi: 0.05             # Kinetic anisotropy parameter
   omg_deg: 10.0         # Angular parameter [degrees^-1]
 
 mobility:
@@ -70,4 +70,20 @@ twomode:
 
   grain2:
     orientation_type: "euler"
-    euler_deg: [0.0, 45.0, 0.0]   # <110> grain
+    euler_deg: [0.0, 54.736, 45.0]   # <111> grain
+
+# ---------------------------------------------------------------
+# diagnostic_3d (used by run_diagnostic_3d.py)
+# ---------------------------------------------------------------
+
+diagnostic_3d:
+  initial_radius_cells: 10       # Initial sphere radius [grid cells]
+  center_x_frac: 0.5             # Sphere center x (fraction of domain)
+  center_y_frac: 0.5             # Sphere center y (fraction of domain)
+  center_z_frac: 0.5             # Sphere center z (fraction of domain)
+
+  undercooling_K: 1.0            # Uniform undercooling ΔT [K]
+
+  orientation_type: "euler"      # "euler" or "quaternion"
+  euler_deg: [0.0, 0.0, 0.0]     # Default: crystal axes = grid axes
+  # quaternion: [0.0, 0.0, 0.0, 1.0]
