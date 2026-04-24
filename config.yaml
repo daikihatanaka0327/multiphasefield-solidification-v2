@@ -29,7 +29,7 @@ anisotropy:
   delta_a: 0.36         # Anisotropy strength
   mu_a: 0.6156          # Anisotropy prefactor
   p_round: 0.05         # Corner rounding parameter
-  ksi: 0.05             # Kinetic anisotropy parameter
+  ksi: 0.30             # Kinetic anisotropy parameter
   omg_deg: 10.0         # Angular parameter [degrees^-1]
 
 mobility:

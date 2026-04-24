@@ -24,8 +24,8 @@ import yaml
 
 # ─── パラメータグリッド定義 ───────────────────────────────────────────────────
 
-G_VALUES = [1.0e+2]       # 温度勾配 [K/m]
-V_VALUES = [2.0e-2]       # 引き上げ速度 [m/s]
+G_VALUES = [1.0e+3]       # 温度勾配 [K/m]
+V_VALUES = [5.0e-2]       # 引き上げ速度 [m/s]
 
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ def main():
         for V in V_VALUES:
             n += 1
             cooling = G * V
-            out_dir = f"result/twomode_sweep/newgrain/G{G:.1e}/V{V:.1e}"
+            out_dir = f"result/twomode_sweep/G{G:.0e}/V{V:.0e}"
             print(f"[{n:2d}/{total}] G={G:.1e}, V={V:.1e}, G*V={cooling:.3e}  →  {out_dir}")
 
             if args.dry_run:
